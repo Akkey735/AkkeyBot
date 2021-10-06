@@ -242,7 +242,7 @@ async def on_command_error(_error, error):
 async def on_ready():
 	if ConfigLoad["start-notify"] == "true":
 		Start_up_message()
-		await bot.change_presence(activity=nextcord.Game(name='.help | AkkeyBot', type=1))
+		await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers | AkkeyBot', type=1))
 		notify_channel_id = ConfigLoad["chid"]
 		notify_channel = await bot.fetch_channel(int(notify_channel_id))
 		version = ConfigLoad["version"]
@@ -250,7 +250,7 @@ async def on_ready():
 		await notify_channel.send(f"Bot version is {version}")
 	else:
 		Start_up_message()
-		await bot.change_presence(activity=nextcord.Game(name='.help | AkkeyBot', type=1))
+		await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers | AkkeyBot', type=1))
 
 @bot.event
 async def on_guild_join(guild):
@@ -334,9 +334,9 @@ async def help(help, t=None, page=None):
 			await help.send("無効な引数です。")
 	elif t == "features":
 		Features = nextcord.Embed(title="機能", description="Botの特徴を見ることができます。")
-		Features.add_field(name="簡単なbanとtempban", value="メンションでもIDでもユーザーを素早くBanすることができます。\nまた、サーバーに入っていないユーザーもBanすることができます。\nこれにより、素早くまたは事前にユーザーをBanできます。")
-		Features.add_field(name="カスタマイズ可能な設定", value="サーバーごとにPrefixやミュートロールを設定できます。\nそのため、Prefixで複数のBotが反応してしまうことがありません。\nそして、ロールを勝手に作ってほしくないサーバーにもおすすめです。\nミュートロールを完全にカスタマイズできます。")
-		Features.add_field(name="サーバーの作成を支援", value="slowmodeやdupeでサーバーの作成を簡単にします。\nカテゴリやロールを複製できるため、何回も権限を設定する必要はなくなります!")
+		Features.add_field(name="簡単なbanとtempban", value="メンションでもIDでもユーザーを素早くBanすることができます。\nまた、サーバーに入っていないユーザーもBanすることができます。\nこれにより、素早くまたは事前にユーザーをBanできます。", inline=False)
+		Features.add_field(name="カスタマイズ可能な設定", value="サーバーごとにPrefixやミュートロールを設定できます。\nそのため、Prefixで複数のBotが反応してしまうことがありません。\nそして、ロールを勝手に作ってほしくないサーバーにもおすすめです。\nミュートロールを完全にカスタマイズできます。", inline=False)
+		Features.add_field(name="サーバーの作成を支援", value="slowmodeやdupeでサーバーの作成を簡単にします。\nカテゴリやロールを複製できるため、何回も権限を設定する必要はなくなります!", inline=False)
 		await help.send(embed=Features)
 	else:
 		await help.send("無効な引数です。")
@@ -381,7 +381,8 @@ async def update(update):
 	UpdateInfo.add_field(name="Bot-Version-1.0.6", value="- 内部的な変更", inline=False)
 	UpdateInfo.add_field(name="Bot-Version-1.0.7", value="- カテゴリおよびロールの複製コマンド追加\n- sapiコマンドの改良", inline=False)
 	UpdateInfo.add_field(name="Bot-Version-1.0.8", value="- 自動応答の安定性向上", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.9(Latest)", value="- 設定のロードの安全性を向上\n- 複数のエラーを修正\n- 複数のコマンドを削除", inline=False)
+	UpdateInfo.add_field(name="Bot-Version-1.0.9", value="- 設定のロードの安全性を向上\n- 複数のエラーを修正\n- 複数のコマンドを削除", inline=False)
+	UpdateInfo.add_field(name="Bot-Version-1.1.0(Latest)", value="- helpのfeaturesを修正\n- dupeコマンドを修正\n- Botのアクティビティを変更", inline=False)
 	await update.send(embed=UpdateInfo)
 
 @bot.command()
@@ -401,6 +402,9 @@ async def ping(ping, t="normal"):
 @commands.cooldown(1, 60, commands.BucketType.user)
 async def dupe(dupe, t, id, name):
 	print("[Run]コマンド「dupe」が実行されました")
+	if not dupe.author.guild_permissions.administrator:
+		await dupe.send("このコマンドの実行には管理者権限が必要です。")
+		return
 	if t == "Category":
 		guild = bot.get_guild(int(dupe.guild.id))
 		for category in guild.categories:
