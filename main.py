@@ -27,6 +27,8 @@ SOFTWARE.
 # Module import
 from operator import ne
 import re
+
+from nextcord.errors import LoginFailure
 print("[StartUp]ライブラリ「re」をインポートしました")
 from json.decoder import JSONDecodeError
 print("[StartUp]ライブラリ「json」のパッケージ「decoder」に含まれている「JsonDecodeError」をインポートしました")
@@ -46,7 +48,7 @@ import json
 print("[StartUp]ライブラリ「json」をインポートしました")
 import yaml
 print("[StartUp]ライブラリ「yaml」をインポートしました")
-from nextcord.ext import commands
+from nextcord.ext import commands, tasks
 print("[StartUp]ライブラリ「nextcord」のパッケージ「commands」をインポートしました")
 from nextcord.ext.commands import CommandNotFound, CommandOnCooldown, NotOwner, MemberNotFound, RoleNotFound, MissingRequiredArgument, MissingPermissions
 print("[StartUp]ライブラリ「nextcord」のパッケージ「CommandNotFound」をインポートしました")
@@ -167,7 +169,7 @@ def nitro_check(code): # nitrocコマンドで使用
 print("[StartUp]関数「nitro_check」をロードしました")
 
 def invite_check(code): # invitecコマンドで使用
-	res = requests.get(f"https://discordapp.com/api/v9/invite/{code}")
+	res = requests.get(f"https://discordapp.com/api/v9/invites/{code}")
 	response = res.json()
 	return response
 print("[StartUp]関数「invite_check」をロードしました")
@@ -236,6 +238,10 @@ async def on_command_error(_error, error):
 
 	raise error
 # Error処理
+
+@tasks.loop(seconds=1)
+async def loop():
+	await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers | AkkeyBot', type=1))
 
 # Bot Events
 @bot.event
@@ -342,7 +348,6 @@ async def help(help, t=None, page=None):
 		await help.send("無効な引数です。")
 
 @bot.command()
-@commands.cooldown(1, 15, commands.BucketType.user)
 async def update(update):
 	print("[Run]コマンド「update」が実行されました")
 	UpdateInfo = nextcord.Embed(title="アップデート履歴", color=0xff4500)
@@ -382,11 +387,11 @@ async def update(update):
 	UpdateInfo.add_field(name="Bot-Version-1.0.7", value="- カテゴリおよびロールの複製コマンド追加\n- sapiコマンドの改良", inline=False)
 	UpdateInfo.add_field(name="Bot-Version-1.0.8", value="- 自動応答の安定性向上", inline=False)
 	UpdateInfo.add_field(name="Bot-Version-1.0.9", value="- 設定のロードの安全性を向上\n- 複数のエラーを修正\n- 複数のコマンドを削除", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.1.0(Latest)", value="- helpのfeaturesを修正\n- dupeコマンドを修正\n- Botのアクティビティを変更", inline=False)
+	UpdateInfo.add_field(name="Bot-Version-1.1.0", value="- helpのfeaturesを修正\n- dupeコマンドを修正\n- Botのアクティビティを変更", inline=False)
+	UpdateInfo.add_field(name="Bot-Version-1.1.1(Latest)", value="- invitecコマンドの修正\n- アクティビティのサーバー数を1秒ごとに更新\n- 自動会話機能を最適化\n- stopコマンド消去\n- すべてのコマンドのクールダウン削除", inline=False)
 	await update.send(embed=UpdateInfo)
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def ping(ping, t="normal"):
 	print("[Run]コマンド「ping」が実行されました")
 	if t == "normal": 
@@ -399,7 +404,6 @@ async def ping(ping, t="normal"):
 	await ping.send(embed=ping_result)
 
 @bot.command()
-@commands.cooldown(1, 60, commands.BucketType.user)
 async def dupe(dupe, t, id, name):
 	print("[Run]コマンド「dupe」が実行されました")
 	if not dupe.author.guild_permissions.administrator:
@@ -442,7 +446,6 @@ async def dupe(dupe, t, id, name):
 		await dupe.send(embed=dupe_type_invalid)
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def server(server):
 	print("[Run]コマンド「server」が実行されました")
 	guild = bot.get_guild(server.guild.id)
@@ -488,7 +491,6 @@ async def server(server):
 		return
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def tokenec(tokenec, t=None):
 	print("[Run]コマンド「tokenec」が実行されました")
 	if t == None:
@@ -503,7 +505,6 @@ async def tokenec(tokenec, t=None):
 		await tokenec.send(embed=token_invalid)
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def qi(qi, b=None, permscode="8"):
 	print("[Run]コマンド「qi」が実行されました")
 	if b == None:
@@ -526,7 +527,6 @@ async def qi(qi, b=None, permscode="8"):
 	await qi.send(embed=bot_invite_created)
 
 @bot.command()
-@commands.cooldown(1, 120, commands.BucketType.guild)
 async def tokenc(tokenc, t=None):
 	if t == None:
 		no_token = nextcord.Embed(title="Tokenを入力してください", description="Tokenが入力されませんでした。\n有効なTokenを入力して再度お試しください。")
@@ -549,7 +549,6 @@ async def nitroc(nitroc, nitro=None):
 		await nitroc.send("Nitroは無効です。")
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def lookup(lookup, ip=None):
 	print("[Run]コマンド「lookup」が実行されました")
 	if ip == None:
@@ -590,7 +589,6 @@ async def lookup(lookup, ip=None):
 	await lookup.send(f"IPアドレスの情報\nIP: {IPAddress}\nエリア: {Continent}\n国: {Country}\n都道府県: {Region}\n市 / 区: {City}\n緯度: {Lat}\n経度: {Lon}\nタイムゾーン: {Timezone}\nISP: {ISP}\nORG: {ORG}\n逆引き: {Reverse}\nモバイル回線: {UsingMobile}\nProxy使用: {UsingProxy}\n回線タイプ: {Special}")
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def say(say, type="msg", *, content):
 	print("[Run]コマンド「say」が実行されました")
 	if say.author.guild_permissions.administrator:
@@ -605,7 +603,6 @@ async def say(say, type="msg", *, content):
 		await say.send("管理者以外は実行することができません。")
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def invitec(invitec, icode):
 	print("[Run]コマンド「invitec」が実行されました")
 	response = invite_check(code=icode)
@@ -648,7 +645,6 @@ async def invitec(invitec, icode):
 
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def mute(mute, settype, id):
 	print("[Run]コマンド「mute」が実行されました")
 	if mute.author.guild_permissions.administrator:
@@ -688,7 +684,6 @@ async def mute(mute, settype, id):
 		await mute.send("権限が足りません。\nミュートを実行するには管理者権限保有者でなければ行けません。")
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def roleper(roleper, role: nextcord.Role):
 	if role.permissions.administrator:
 		administrator=':green_circle:'
@@ -820,7 +815,6 @@ async def roleper(roleper, role: nextcord.Role):
 	await roleper.send(embed=RolePermsResult)
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def memberper(memberper, member: nextcord.Member):
 	if member.guild_permissions.administrator:
 		administrator=':green_circle:'
@@ -952,7 +946,6 @@ async def memberper(memberper, member: nextcord.Member):
 	await memberper.send(embed=MemberPermsResult)
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def getmcsv(getmcsv, t="normal", address=None, port="25565"):
 	print("[Run]コマンド「getmcsv」が実行されました")
 	if address == None:
@@ -987,7 +980,6 @@ async def getmcsv(getmcsv, t="normal", address=None, port="25565"):
 			return
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def getmojang(getmojang):
 	print("[Run]コマンド「getmojang」が実行されました")
 	status = mojang_status()
@@ -1042,7 +1034,6 @@ async def clear(clear, amout="10"):
 		await clear.send("権限がたりません。管理者である必要があります。")
 	
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def serach(serach, u=None):
 	print("[Run]コマンド「serach」が実行されました")
 	if u == None:
@@ -1248,7 +1239,6 @@ async def serach(serach, u=None):
 			await serach.send("エラーが発生しました。\nユーザーを見つけることができませんでした。")
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def kick(kick, member: nextcord.member, reason="Banned"):
 	print("[Run]コマンド「kick」が実行されました")
 	if kick.author.guild_permissions.kick_members:
@@ -1262,7 +1252,6 @@ async def kick(kick, member: nextcord.member, reason="Banned"):
 		await ban.send(embed=PermissionError)
 	
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def tempban(tempban, request_ban_user, time, reason="Banned"):
 	print("[Run]コマンド「tempban」が実行されました")
 	if tempban.author.guild_permissions.ban_members:
@@ -1286,7 +1275,6 @@ async def tempban(tempban, request_ban_user, time, reason="Banned"):
 		await tempban.send(embed=PermissionError)
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def ban(ban, request_ban_user, reason="Banned"):
 	print("[Run]コマンド「ban」が実行されました")
 	if ban.author.guild_permissions.ban_members:
@@ -1307,7 +1295,6 @@ async def ban(ban, request_ban_user, reason="Banned"):
 		await ban.send(embed=PermissionError)
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def unban(unban, id:int):
 	print("[Run]コマンド「unban」が実行されました")
 	if unban.author.guild_permissions.administrator:
@@ -1322,7 +1309,6 @@ async def unban(unban, id:int):
 		await unban.send(embed=PError)
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
 async def banlist(banlist):
 	print("[Run]コマンド「banlist」が実行されました")
 	bans = await banlist.guild.bans()
@@ -1331,7 +1317,6 @@ async def banlist(banlist):
 	await banlist.send(embed=bl)
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.channel)
 async def slowmode(slowmode, delay: int):
 	print("[Run]コマンド「slowmode」が実行されました")
 	if slowmode.author.guild_permissions.manage_channels:
@@ -1341,7 +1326,6 @@ async def slowmode(slowmode, delay: int):
 		await slowmode.send("権限が足りません。\n少なくともチャンネルの編集権限を持っている必要があります。")
 
 @bot.command()
-@commands.cooldown(1, 120, commands.BucketType.guild)
 async def report(report, *, content):
 	print("[Run]コマンド「report」が実行されました")
 	await report.send("レポートを送信します。")
@@ -1350,7 +1334,6 @@ async def report(report, *, content):
 	await report.send("レポートが送信されました。")
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.guild)
 async def setpre(setpre, prefix="."):
 	print("[Run]コマンド「setpre」が実行されました")
 	if setpre.author.guild_permissions.administrator:
@@ -1366,17 +1349,12 @@ async def setpre(setpre, prefix="."):
 	else:
 		await setpre.send('管理者権限のみがPrefixを設定できます')
 
-@bot.command()
-@commands.is_owner()
-async def stop(stop):
-	print("[Run]コマンド「stop」が実行されました")
-	await bot.logout()
-	await bot.close()
+loop.start()
 
 try:
 	bot.run(ConfigLoad["token"])
-except:
-	print("Ready Failure")
+except LoginFailure:
+	print("Login Failed")
 	exit()
 
 # Copyright © 2021 Akkey57492
