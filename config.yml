@@ -1,5 +1,5 @@
 token: "TOKEN" # BotへログインするためのToken
 start-notify: "false" # Botが起動したときに特定のチャンネルでお知らせするか
 chid: "" # Botが起動したときにお知らせするチャンネルのID(start-notifyがfalseだった場合は無視されます)
-version: "1.0.9" # Botバージョン
+version: "1.1.1" # Botバージョン
 prefix: "." # BotのPrefix
