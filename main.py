@@ -1,3 +1,5 @@
+# coding: utf-8
+
 """
 MIT License
 
@@ -22,13 +24,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-# coding: utf-8
-
 # Module import
 from operator import ne
 import re
 
 from nextcord.errors import LoginFailure
+from nextcord.ext.commands.errors import UserNotFound
 print("[StartUp]ライブラリ「re」をインポートしました")
 from json.decoder import JSONDecodeError
 print("[StartUp]ライブラリ「json」のパッケージ「decoder」に含まれている「JsonDecodeError」をインポートしました")
@@ -36,8 +37,8 @@ import nest_asyncio
 print("[StartUp]ライブラリ「nest_asyncio」をインポートしました")
 import datetime
 print("[StartUp]ライブラリ「datetime」をインポートしました")
-import traceback2 as traceback
-print("[StartUp]ライブラリ「traceback2」をインポートしました")
+import traceback
+print("[StartUp]ライブラリ「traceback」をインポートしました")
 import requests
 print("[StartUp]ライブラリ「requests」をインポートしました")
 import nextcord
@@ -82,12 +83,6 @@ def mc_status(t, address, port): # minecraft関連のコマンドに使用
 		response = requests.get(api_url)
 		return response.json()
 print("[StartUp]関数「mc_status」をロードしました")
-
-def mojang_status(): # minecraft関連のコマンドに使用
-	api_url = "http://status.mojang.com/check"
-	response = requests.get(api_url).json()
-	return response
-print("[StartUp]関数「mojang_status」をロードしました")
 
 def ip_lookup(ip): # lookupコマンドで使用
 	response = requests.get(f"http://ip-api.com/json/{ip}?fields=status,continent,country,regionName,city,lat,lon,timezone,isp,org,reverse,mobile,proxy,hosting,query")
@@ -179,6 +174,43 @@ def convert_seconds(time): # 時間計算
     return int(datetime.timedelta(**{time_layout.get(m.group('unit').lower(), 'seconds'): int(m.group('val'))for m in re.finditer(r'(?P<val>\d+)(?P<unit>[smhdw]?)', time, flags=re.I)}).total_seconds())
 # Function
 
+# Class
+class mute_easy_reason(nextcord.ui.View):
+	def __init__(self, *, timeout = 60):
+		super().__init__(timeout=timeout)
+		self.value = None
+	@nextcord.ui.select(
+		custom_id="reason",
+		placeholder="理由選択",
+		options= [
+			nextcord.SelectOption(label="不審なアカウント", value="doubt_user", description="該当のユーザーが不審であるという理由に設定します。"),
+			nextcord.SelectOption(label="スパム", value="spam_user", description="スパム行為という理由に設定します。"),
+			nextcord.SelectOption(label="無駄なメンション", value="mention", description="無駄なメンションを行ったという理由に設定します。"),
+			nextcord.SelectOption(label="その他(カスタム)", value="custom", description="任意に理由を設定します。"),
+			nextcord.SelectOption(label="無し", value="null", description="理由無しに設定します。")
+		]
+	)
+	async def easy_reason_menu(self, select: nextcord.ui.Select, interaction: nextcord.Interaction):
+		self.value = select.values[0]
+
+class ban_easy_reason(nextcord.ui.View):
+	def __init__(self, *, timeout = 60):
+		super().__init__(timeout=timeout)
+		self.value = None
+	@nextcord.ui.select(
+		custom_id="reason",
+		placeholder="理由選択",
+		options= [
+			nextcord.SelectOption(label="不審なアカウント", value="doubt_user", description="該当のユーザーが不審であるという理由に設定します。"),
+			nextcord.SelectOption(label="荒らし", value="spam_user", description="荒らし行為という理由に設定します。"),
+			nextcord.SelectOption(label="その他(カスタム)", value="custom", description="任意に理由を設定します。"),
+			nextcord.SelectOption(label="無し", value="null", description="理由無しに設定します。")
+		]
+	)
+	async def easy_reason_menu(self, select: nextcord.ui.Select, interaction: nextcord.Interaction):
+		self.value = select.values[0]
+# Class
+
 # Config load
 ConfigOpen = open("config.yml", "r", encoding="utf-8")
 ConfigLoad = yaml.safe_load(ConfigOpen) 
@@ -187,14 +219,16 @@ print("[StartUp]Jsonファイル「config.yml」をロードしました")
 
 # Settings
 prefix = ConfigLoad["prefix"]
-owners = [12345, 12345]
+owners = []
+
 bot = commands.AutoShardedBot(
 	command_prefix=(get_prefix),
 	help_command=None,
 	owner_ids = set(owners),
-	intents=nextcord.Intents.all(),
+	intents=nextcord.Intents.default().all(),
 	shard_count=10
 )
+
 bot.remove_command("help")
 print("[StartUp]設定をロードしました。")
 # Settings
@@ -229,6 +263,10 @@ async def on_command_error(_error, error):
 	elif isinstance(error, MissingPermissions):
 		print("[Defined error]想定済みのエラー(MissingPermissions)が発生しました。")
 		await _error.reply("Bot自体の権限が足りません。")
+		return
+	elif isinstance(error, NotOwner):
+		print("[Defined error]想定済みのエラー(NotOwner)が発生しました。")
+		await _error.reply("そのコマンドは特定のユーザーのみが実行できます。")
 		return
 	else:
 		main_python_error = getattr(error, "original", error)
@@ -389,6 +427,7 @@ async def update(update):
 	UpdateInfo.add_field(name="Bot-Version-1.0.9", value="- 設定のロードの安全性を向上\n- 複数のエラーを修正\n- 複数のコマンドを削除", inline=False)
 	UpdateInfo.add_field(name="Bot-Version-1.1.0", value="- helpのfeaturesを修正\n- dupeコマンドを修正\n- Botのアクティビティを変更", inline=False)
 	UpdateInfo.add_field(name="Bot-Version-1.1.1(Latest)", value="- invitecコマンドの修正\n- アクティビティのサーバー数を1秒ごとに更新\n- 自動会話機能を最適化\n- stopコマンド消去\n- すべてのコマンドのクールダウン削除", inline=False)
+	UpdateInfo.add_field(name="Bot-Version-1.2.0(Latest)", value="- tempbanのban解除日を表示するように\n- slowmodeの指定でsやhを使えるように\n- getmojangコマンドを消去\n- 2つの不具合を修正\n- ban時の理由を簡単に指定できるように", inline=False)
 	await update.send(embed=UpdateInfo)
 
 @bot.command()
@@ -591,6 +630,12 @@ async def lookup(lookup, ip=None):
 @bot.command()
 async def say(say, type="msg", *, content):
 	print("[Run]コマンド「say」が実行されました")
+	try:
+		ch = await bot.fetch_channel(say.channel.id)
+		msg = await ch.fetch_message(say.id)
+		await msg.delete()
+	except MissingPermissions:
+		pass
 	if say.author.guild_permissions.administrator:
 		if type == "msg":
 			await say.send(f"{content}")
@@ -645,30 +690,63 @@ async def invitec(invitec, icode):
 
 
 @bot.command()
-async def mute(mute, settype, id):
+async def mute(mute, settype, id, reason=None):
 	print("[Run]コマンド「mute」が実行されました")
 	if mute.author.guild_permissions.administrator:
 		guild = bot.get_guild(mute.guild.id)
 		if settype == "set":
 			with open("mute.json", "r") as f:
 				mute_role_ids = json.load(f)
-			mute_role_ids[str(guild.id)] = str(id)
+			mute_role_ids[str(mute.guild.id)] = str(id)
 			with open("mute.json", "w") as f:
 				json.dump(mute_role_ids, f, indent=4)
-			await mute.send(f"ロールを{id}設定しました。")
+			await mute.send(f"ロールのIDを{id}設定しました。")
 		elif settype == "mute":
+			a = id.replace("<", "")
+			b = a.replace("@", "")
+			c = b.replace("!", "")
+			d = c.replace(">", "")
+			e = d.replace("&", "")
+			id = e
+			def interaction_check(interaction_info):
+				return mute.author.id == interaction_info.user.id
+			def new_reason_check(new_reason_info):
+				return mute.author.id == new_reason_info.author.id
+			if reason == None:
+				view = mute_easy_reason()
+				await mute.send("ミュートの理由を選択してください。", view=view)
+				interaction = await bot.wait_for(event="interaction", check=interaction_check)
+				if interaction.data["values"][0] == "doubt_user":
+					reason = "不審なユーザー"
+				elif interaction.data["values"][0] == "spam_user":
+					reason = "スパム行為をした"
+				elif interaction.data["values"][0] == "mention":
+					reason = "無駄なメンション行為"
+				elif interaction.data["values"][0] == "custom":
+					await mute.send("理由を設定してください。")
+					new_reason = await bot.wait_for("message", check=new_reason_check)
+					reason = new_reason.content
+				elif interaction.data["values"][0] == "null":
+					pass
 			with open("mute.json", "r") as f:
 				mute_role_ids = json.load(f)
 			mute_role = mute_role_ids[str(guild.id)]
 			user = guild.get_member(int(id))
 			role = guild.get_role(int(mute_role))
 			try:
-				await user.add_roles(role)
+				await user.add_roles(role, reason=reason)
 			except:
 				ExceptionError = nextcord.Embed(title="エラー", description="ミュートが正常にできませんでした。")
-				await getmcsv.send(embed=ExceptionError)
+				await mute.send(embed=ExceptionError)
+				return
 			await mute.send(f"{user}をミュートしました。")
 		elif settype == "unmute":
+			a = id.replace("<", "")
+			b = a.replace("@", "")
+			c = b.replace("!", "")
+			d = c.replace(">", "")
+			e = d.replace("&", "")
+			id = e
 			with open("mute.json", "r") as f:
 				mute_role_ids = json.load(f)
 			mute_role = mute_role_ids[str(guild.id)]
@@ -980,48 +1058,6 @@ async def getmcsv(getmcsv, t="normal", address=None, port="25565"):
 			return
 
 @bot.command()
-async def getmojang(getmojang):
-	print("[Run]コマンド「getmojang」が実行されました")
-	status = mojang_status()
-	MinecraftNET = status[0]["minecraft.net"]
-	MojangCOM = status[7]["mojang.com"]
-	Session = status[1]["session.minecraft.net"]
-	SessionSV = status[4]["sessionserver.mojang.com"]
-	Auth = status[3]["authserver.mojang.com"]
-	if MinecraftNET == "green":
-		MinecraftNETStatus = ":green_circle:"
-	elif MinecraftNET == "yellow":
-		MinecraftNETStatus = ":yellow_circle:"
-	elif MinecraftNET == "red":
-		MinecraftNETStatus = ":red_circle:"
-	if MojangCOM == "green":
-		MinecraftComStatus = ":green_circle:"
-	elif MojangCOM == "yellow":
-		MinecraftComStatus = ":yellow_circle:"
-	elif MojangCOM == "red":
-		MinecraftComStatus = ":red_circle:"
-	if Session == "green":
-		MinecraftSessionStatus = ":green_circle:"
-	elif Session == "yellow":
-		MinecraftSessionStatus = ":yellow_circle:"
-	elif Session == "red":
-		MinecraftSessionStatus = ":red_circle:"
-	if SessionSV == "green":
-		MinecraftSessionSVStatus = ":green_circle:"
-	elif SessionSV == "yellow":
-		MinecraftSessionSVStatus = ":yellow_circle:"
-	elif SessionSV == "red":
-		MinecraftSessionSVStatus = ":red_circle:"
-	if Auth == "green":
-		MinecraftAuthSVStatus = ":green_circle:"
-	elif Auth == "yellow":
-		MinecraftAuthSVStatus = ":yellow_circle:"
-	elif Auth == "red":
-		MinecraftAuthSVStatus = ":red_circle:"
-	ResultOutput = nextcord.Embed(title="サーバー情報", description=f"minecraft.net: {MinecraftNETStatus}\nmojang.com: {MinecraftComStatus}\nセッション: {MinecraftSessionStatus}\nセッションサーバー: {MinecraftSessionSVStatus}\n認証サーバー: {MinecraftAuthSVStatus}", color=0x008000)
-	await getmojang.send(embed=ResultOutput)
-
-@bot.command()
 @commands.cooldown(1, 30, commands.BucketType.user)
 async def clear(clear, amout="10"):
 	print("[Run]コマンド「clear」が実行されました")
@@ -1046,200 +1082,195 @@ async def serach(serach, u=None):
 	e = d.replace("&", "")
 	if e == "me":
 		e = serach.author.id
-	try:
-		def status_jp_gen(s):
-			if "online" in s:
-				status_jp = ":green_circle:"
-			elif "idle" in s:
-				status_jp = ":yellow_circle:"
-			elif "dnd" in s:
-				status_jp = ":red_circle:"
-			elif "offline" in s:
-				status_jp = ":black_circle:"
-			return status_jp
-		guild = bot.get_guild(serach.guild.id)
-		user = guild.get_member(int(e))
+	async def fetch_user_check(check_user):
+		user = await bot.fetch_user(int(check_user))
 		name = user.name
 		tag = user.discriminator
 		username = f"{name}#{tag}"
 		id = user.id
-		status = user.status
-		status_phone = user.mobile_status
-		status_app = user.desktop_status
-		status_web = user.web_status
-		nickname = user.display_name
 		create_time = user.created_at
-		join_time = user.joined_at
 		bot_check = user.bot
 		if bot_check == True:
 			bot_check_jp = "Bot"
-		if bot_check == False:
+		elif bot_check == False:
 			bot_check_jp = "User"
-		status_jp = status_jp_gen(s=status)
-		phone_status_jp = status_jp_gen(s=status_phone)
-		desktop_status_jp = status_jp_gen(s=status_app)
-		web_status_jp = status_jp_gen(s=status_web)
-		if user.guild_permissions.administrator:
-			administrator=':green_circle:'
-		else:
-			administrator='::red_circle:'
-		if user.guild_permissions.view_audit_log:
-			view_audit_log=':green_circle:'
-		else:
-			view_audit_log=':red_circle:'
-		if user.guild_permissions.view_guild_insights:
-			view_guild_insights=':green_circle:'
-		else:
-			view_guild_insights=':red_circle:'
-		if user.guild_permissions.manage_guild:
-			manage_guild=':green_circle:'
-		else:
-			manage_guild=':red_circle:'
-		if user.guild_permissions.manage_roles:
-			manage_roles=':green_circle:'
-		else:
-			manage_roles=':red_circle:'
-		if user.guild_permissions.manage_channels:
-			manage_channels=':green_circle:'
-		else:
-			manage_channels=':red_circle:'
-		if user.guild_permissions.kick_members:
-			kick_members=":green_circle:"
-		else:
-			kick_members=':red_circle:'
-		if user.guild_permissions.ban_members:
-			ban_members=':green_circle:'
-		else:
-			ban_members=':red_circle:'
-		if user.guild_permissions.create_instant_invite:
-			create_instant_invite=':green_circle:'
-		else:
-			create_instant_invite=':red_circle:'
-		if user.guild_permissions.change_nickname:
-			change_nickname=':green_circle:'
-		else:
-			change_nickname=':red_circle:'
-		if user.guild_permissions.manage_nicknames:
-			manage_nicknames=':green_circle:'
-		else:
-			manage_nicknames=':red_circle:'
-		if user.guild_permissions.manage_emojis:
-			manage_emojis=':green_circle:'
-		else:
-			manage_emojis=':red_circle:'
-		if user.guild_permissions.manage_webhooks:
-			manage_webhooks=':green_circle:'
-		else:
-			manage_webhooks=':red_circle:'
-		if user.guild_permissions.view_channel:
-			view_channel=':green_circle:'
-		else:
-			view_channel=':red_circle:'
-		if user.guild_permissions.send_messages:
-			send_messages=':green_circle:'
-		else:
-			send_messages=':red_circle:'
-		if user.guild_permissions.send_tts_messages:
-			send_tts_messages=':green_circle:'
-		else:
-			send_tts_messages=':red_circle:'
-		if user.guild_permissions.manage_messages:
-			manage_messages=':green_circle:'
-		else:
-			manage_messages=':red_circle:'
-		if user.guild_permissions.embed_links:
-			embed_links=':green_circle:'
-		else:
-			embed_links=':red_circle:'
-		if user.guild_permissions.attach_files:
-			attach_files=':green_circle:'
-		else:
-			attach_files=':red_circle:'
-		if user.guild_permissions.read_message_history:
-			read_message_history=':green_circle:'
-		else:
-			read_message_history=':red_circle:'
-		if user.guild_permissions.mention_everyone:
-			mention_everyone=':green_circle:'
-		else:
-			mention_everyone=':red_circle:'
-		if user.guild_permissions.use_external_emojis:
-			use_external_emojis=':green_circle:'
-		else:
-			use_external_emojis=':red_circle:'
-		if user.guild_permissions.add_reactions:
-			add_reactions=':green_circle:'
-		else:
-			add_reactions=':red_circle:'
-		if user.guild_permissions.use_slash_commands:
-			use_slash_commands=':green_circle:'
-		else:
-			use_slash_commands=':red_circle:'
-		if user.guild_permissions.connect:
-			connect=':green_circle:'
-		else:
-			connect=':red_circle:'
-		if user.guild_permissions.speak:
-			speak=':green_circle:'
-		else:
-			speak=':red_circle:'
-		if user.guild_permissions.mute_members:
-			mute_members = ':green_circle:'
-		else:
-			mute_members = ':red_circle:'
-		if user.guild_permissions.deafen_members:
-			deafen_members = ':green_circle:'
-		else:
-			deafen_members = ':red_circle:'
-		if user.guild_permissions.move_members:
-			move_members = ':green_circle:'
-		else:
-			move_members = ':red_circle:'
-		if user.guild_permissions.use_voice_activation:
-			use_voice_activation = ':green_circle:'
-		else:
-			use_voice_activation = ':red_circle:'
-		if user.guild_permissions.priority_speaker:
-			priority_speaker = ':green_circle:'
-		else:
-			priority_speaker = ':red_circle:'
-		roles = []
-		for role in user.roles:
-			if role.name == "@everyone":
-				continue
-			roles.append(role.name)
-		uinfo = nextcord.Embed(title=f"{username}", description=f"ユーザー名: {username}\nID: {id}\nニックネーム: {nickname}\nアカウント作成日: {create_time}\nサーバー参加日: {join_time}\nステータス: {status_jp}\nWebステータス: {web_status_jp}\nデスクトップステータス: {desktop_status_jp}\nスマホステータス: {phone_status_jp}\nBotステータス: {bot_check_jp}")
-		uper = nextcord.Embed(title=f'権限', description=f'管理者権限: {administrator}\n\n監視ログの表示: {view_audit_log}\n\nサーバーインサイトの表示: {view_guild_insights}\n\nサーバー管理: {manage_guild}\n\nロール管理: {manage_roles}\n\nチャンネルの管理: {manage_channels}\n\nメンバーのKick: {kick_members}\n\nメンバーのBan: {ban_members}\n\nインスタント招待の作成: {create_instant_invite}\n\nニックネームの変更: {change_nickname}\n\nニックネームの管理: {manage_nicknames}\n\n絵文字の管理: {manage_emojis}\n\nWebHook管理: {manage_webhooks}\n\nチャンネルを表示: {view_channel}\n\nメッセージを送信: {send_messages}\n\nTTSメッセージの送信: {send_tts_messages}\n\nメッセージの管理: {manage_messages}\n\n埋め込みリンク: {embed_links}\n\nファイルの添付: {attach_files}\n\nメッセージ履歴を標示: {read_message_history}\n\neveryoneメンション: {mention_everyone}\n\n外部の絵文字を使用: {use_external_emojis}\n\nリアクションを追加: {add_reactions}\n\nスラッシュコマンドの使用: {use_slash_commands}\n\nボイスチャンネルへの接続: {connect}\n\nボイスチャンネルでの発言: {speak}\n\nメンバーをミュート: {mute_members}\n\nメンバーをスピーカーミュート: {deafen_members}\n\nメンバーを移動: {move_members}\n\nボイスアクティビティ: {use_voice_activation}\n\n優先スピーカー: {priority_speaker}')
-		uroles = nextcord.Embed(title="ロール", description="- {0}".format("\n".join(roles)))
+		uinfo = nextcord.Embed(title=f"{username}", description=f"ユーザー名: {username}\nID: {id}\nアカウント作成日: {create_time}\nBotステータス: {bot_check_jp}")
 		uinfo.set_thumbnail(url=f"{user.avatar.url}")
 		await serach.send(embed=uinfo)
-		await serach.send(embed=uper)
-		try:
-			await serach.send(embed=uroles)
-		except:
-			pass
+	def status_jp_gen(s):
+		if "online" in s:
+			status_jp = ":green_circle:"
+		elif "idle" in s:
+			status_jp = ":yellow_circle:"
+		elif "dnd" in s:
+			status_jp = ":red_circle:"
+		elif "offline" in s:
+			status_jp = ":black_circle:"
+		return status_jp
+	guild = bot.get_guild(serach.guild.id)
+	user = guild.get_member(int(e))
+	if user == None:
+		await fetch_user_check(check_user=int(e))
 		return
-	except nextcord.errors.NotFound:
-		try:
-			user = await bot.fetch_user(int(e))
-			name = user.name
-			tag = user.discriminator
-			username = f"{name}#{tag}"
-			id = user.id
-			create_time = user.created_at
-			bot_check = user.bot
-			if bot_check == True:
-				bot_check_jp = "Bot"
-			elif bot_check == False:
-				bot_check_jp = "User"
-			uinfo = nextcord.Embed(title=f"{username}", description=f"ユーザー名: {username}\nID: {id}\nアカウント作成日: {create_time}\nBotステータス: {bot_check_jp}")
-			uinfo.set_thumbnail(url=f"{user.avatar.url}")
-			await serach.send(embed=uinfo)
-		except:
-			await serach.send("エラーが発生しました。\nユーザーを見つけることができませんでした。")
+	name = user.name
+	tag = user.discriminator
+	username = f"{name}#{tag}"
+	id = user.id
+	status = user.status
+	status_phone = user.mobile_status
+	status_app = user.desktop_status
+	status_web = user.web_status
+	nickname = user.display_name
+	create_time = user.created_at
+	join_time = user.joined_at
+	bot_check = user.bot
+	if bot_check == True:
+		bot_check_jp = "Bot"
+	if bot_check == False:
+		bot_check_jp = "User"
+	status_jp = status_jp_gen(s=status)
+	phone_status_jp = status_jp_gen(s=status_phone)
+	desktop_status_jp = status_jp_gen(s=status_app)
+	web_status_jp = status_jp_gen(s=status_web)
+	if user.guild_permissions.administrator:
+		administrator=':green_circle:'
+	else:
+		administrator='::red_circle:'
+	if user.guild_permissions.view_audit_log:
+		view_audit_log=':green_circle:'
+	else:
+		view_audit_log=':red_circle:'
+	if user.guild_permissions.view_guild_insights:
+		view_guild_insights=':green_circle:'
+	else:
+		view_guild_insights=':red_circle:'
+	if user.guild_permissions.manage_guild:
+		manage_guild=':green_circle:'
+	else:
+		manage_guild=':red_circle:'
+	if user.guild_permissions.manage_roles:
+		manage_roles=':green_circle:'
+	else:
+		manage_roles=':red_circle:'
+	if user.guild_permissions.manage_channels:
+		manage_channels=':green_circle:'
+	else:
+		manage_channels=':red_circle:'
+	if user.guild_permissions.kick_members:
+		kick_members=":green_circle:"
+	else:
+		kick_members=':red_circle:'
+	if user.guild_permissions.ban_members:
+		ban_members=':green_circle:'
+	else:
+		ban_members=':red_circle:'
+	if user.guild_permissions.create_instant_invite:
+		create_instant_invite=':green_circle:'
+	else:
+		create_instant_invite=':red_circle:'
+	if user.guild_permissions.change_nickname:
+		change_nickname=':green_circle:'
+	else:
+		change_nickname=':red_circle:'
+	if user.guild_permissions.manage_nicknames:
+		manage_nicknames=':green_circle:'
+	else:
+		manage_nicknames=':red_circle:'
+	if user.guild_permissions.manage_emojis:
+		manage_emojis=':green_circle:'
+	else:
+		manage_emojis=':red_circle:'
+	if user.guild_permissions.manage_webhooks:
+		manage_webhooks=':green_circle:'
+	else:
+		manage_webhooks=':red_circle:'
+	if user.guild_permissions.view_channel:
+		view_channel=':green_circle:'
+	else:
+		view_channel=':red_circle:'
+	if user.guild_permissions.send_messages:
+		send_messages=':green_circle:'
+	else:
+		send_messages=':red_circle:'
+	if user.guild_permissions.send_tts_messages:
+		send_tts_messages=':green_circle:'
+	else:
+		send_tts_messages=':red_circle:'
+	if user.guild_permissions.manage_messages:
+		manage_messages=':green_circle:'
+	else:
+		manage_messages=':red_circle:'
+	if user.guild_permissions.embed_links:
+		embed_links=':green_circle:'
+	else:
+		embed_links=':red_circle:'
+	if user.guild_permissions.attach_files:
+		attach_files=':green_circle:'
+	else:
+		attach_files=':red_circle:'
+	if user.guild_permissions.read_message_history:
+		read_message_history=':green_circle:'
+	else:
+		read_message_history=':red_circle:'
+	if user.guild_permissions.mention_everyone:
+		mention_everyone=':green_circle:'
+	else:
+		mention_everyone=':red_circle:'
+	if user.guild_permissions.use_external_emojis:
+		use_external_emojis=':green_circle:'
+	else:
+		use_external_emojis=':red_circle:'
+	if user.guild_permissions.add_reactions:
+		add_reactions=':green_circle:'
+	else:
+		add_reactions=':red_circle:'
+	if user.guild_permissions.use_slash_commands:
+		use_slash_commands=':green_circle:'
+	else:
+		use_slash_commands=':red_circle:'
+	if user.guild_permissions.connect:
+		connect=':green_circle:'
+	else:
+		connect=':red_circle:'
+	if user.guild_permissions.speak:
+		speak=':green_circle:'
+	else:
+		speak=':red_circle:'
+	if user.guild_permissions.mute_members:
+		mute_members = ':green_circle:'
+	else:
+		mute_members = ':red_circle:'
+	if user.guild_permissions.deafen_members:
+		deafen_members = ':green_circle:'
+	else:
+		deafen_members = ':red_circle:'
+	if user.guild_permissions.move_members:
+		move_members = ':green_circle:'
+	else:
+		move_members = ':red_circle:'
+	if user.guild_permissions.use_voice_activation:
+		use_voice_activation = ':green_circle:'
+	else:
+		use_voice_activation = ':red_circle:'
+	if user.guild_permissions.priority_speaker:
+		priority_speaker = ':green_circle:'
+	else:
+		priority_speaker = ':red_circle:'
+	roles = []
+	for role in user.roles:
+		if role.name == "@everyone":
+			continue
+		roles.append("- " + role.name)
+	uinfo = nextcord.Embed(title=f"{username}", description=f"ユーザー名: {username}\nID: {id}\nニックネーム: {nickname}\nアカウント作成日: {create_time}\nサーバー参加日: {join_time}\nステータス: {status_jp}\nWebステータス: {web_status_jp}\nデスクトップステータス: {desktop_status_jp}\nスマホステータス: {phone_status_jp}\nBotステータス: {bot_check_jp}")
+	uper = nextcord.Embed(title=f'権限', description=f'管理者権限: {administrator}\n\n監視ログの表示: {view_audit_log}\n\nサーバーインサイトの表示: {view_guild_insights}\n\nサーバー管理: {manage_guild}\n\nロール管理: {manage_roles}\n\nチャンネルの管理: {manage_channels}\n\nメンバーのKick: {kick_members}\n\nメンバーのBan: {ban_members}\n\nインスタント招待の作成: {create_instant_invite}\n\nニックネームの変更: {change_nickname}\n\nニックネームの管理: {manage_nicknames}\n\n絵文字の管理: {manage_emojis}\n\nWebHook管理: {manage_webhooks}\n\nチャンネルを表示: {view_channel}\n\nメッセージを送信: {send_messages}\n\nTTSメッセージの送信: {send_tts_messages}\n\nメッセージの管理: {manage_messages}\n\n埋め込みリンク: {embed_links}\n\nファイルの添付: {attach_files}\n\nメッセージ履歴を標示: {read_message_history}\n\neveryoneメンション: {mention_everyone}\n\n外部の絵文字を使用: {use_external_emojis}\n\nリアクションを追加: {add_reactions}\n\nスラッシュコマンドの使用: {use_slash_commands}\n\nボイスチャンネルへの接続: {connect}\n\nボイスチャンネルでの発言: {speak}\n\nメンバーをミュート: {mute_members}\n\nメンバーをスピーカーミュート: {deafen_members}\n\nメンバーを移動: {move_members}\n\nボイスアクティビティ: {use_voice_activation}\n\n優先スピーカー: {priority_speaker}')
+	uroles = nextcord.Embed(title="ロール", description="{0}".format("\n".join(roles)))
+	uinfo.set_thumbnail(url=f"{user.avatar.url}")
+	await serach.send(embed=uinfo)
+	await serach.send(embed=uper)
+	await serach.send(embed=uroles)
 
 @bot.command()
-async def kick(kick, member: nextcord.member, reason="Banned"):
+async def kick(kick, member: nextcord.member, reason=None):
 	print("[Run]コマンド「kick」が実行されました")
 	if kick.author.guild_permissions.kick_members:
 		await member.kick(reason=reason)
@@ -1249,10 +1280,10 @@ async def kick(kick, member: nextcord.member, reason="Banned"):
 		await kick.send(embed=KickNotify)
 	else:
 		PermissionError = nextcord.Embed(title="権限エラー", description="権限が足りません。\n少なくともKick権限が必要です。", color=0xFF0000)
-		await ban.send(embed=PermissionError)
+		await kick.send(embed=PermissionError)
 	
 @bot.command()
-async def tempban(tempban, request_ban_user, time, reason="Banned"):
+async def tempban(tempban, request_ban_user, time, reason=None):
 	print("[Run]コマンド「tempban」が実行されました")
 	if tempban.author.guild_permissions.ban_members:
 		a = request_ban_user.replace("<", "")
@@ -1261,13 +1292,31 @@ async def tempban(tempban, request_ban_user, time, reason="Banned"):
 		d = c.replace(">", "")
 		e = d.replace("&", "")
 		ban_user = e
+		def interaction_check(interaction_info):
+			return tempban.author.id == interaction_info.user.id
+		def new_reason_check(new_reason_info):
+			return tempban.author.id == new_reason_info.author.id
+		if reason == None:
+			view = ban_easy_reason()
+			await tempban.send("一時Banの理由を選択してください。", view=view)
+			interaction = await bot.wait_for(event="interaction", check=interaction_check)
+			if interaction.data["values"][0] == "doubt_user":
+				reason = "不審なユーザー"
+			elif interaction.data["values"][0] == "spam_user":
+				reason = "荒らし行為をした"
+			elif interaction.data["values"][0] == "custom":
+				await tempban.send("理由を設定してください。")
+				new_reason = await bot.wait_for("message", check=new_reason_check)
+				reason = new_reason.content
+			elif interaction.data["values"][0] == "null":
+				pass
 		user = await bot.fetch_user(int(ban_user))
 		await tempban.guild.ban(user, reason=reason)
+		response = convert_seconds(time)
 		BanNotify = nextcord.Embed(title="Ban", description=f"ユーザーのBanを実行しました。", color=0x008000)
 		BanNotify.add_field(name="実行者の情報", value=f"名前: {tempban.author}\nID: {tempban.author.id}", inline=False)
-		BanNotify.add_field(name="TempBan者の情報", value=f"名前: {user}\nID: {user.id}", inline=False)
+		BanNotify.add_field(name="TempBan者の情報", value=f"名前: {user}\nID: {user.id}\n解除日: <t:{datetime.datetime.now().timestamp() + response}>", inline=False)
 		await tempban.send(embed=BanNotify)
-		response = convert_seconds(time)
 		await asyncio.sleep(int(response))
 		await tempban.guild.unban(user)
 	else:
@@ -1275,7 +1324,7 @@ async def tempban(tempban, request_ban_user, time, reason="Banned"):
 		await tempban.send(embed=PermissionError)
 
 @bot.command()
-async def ban(ban, request_ban_user, reason="Banned"):
+async def ban(ban, request_ban_user, reason=None):
 	print("[Run]コマンド「ban」が実行されました")
 	if ban.author.guild_permissions.ban_members:
 		a = request_ban_user.replace("<", "")
@@ -1284,6 +1333,24 @@ async def ban(ban, request_ban_user, reason="Banned"):
 		d = c.replace(">", "")
 		e = d.replace("&", "")
 		ban_user = e
+		def interaction_check(interaction_info):
+			return ban.author.id == interaction_info.user.id
+		def new_reason_check(new_reason_info):
+			return ban.author.id == new_reason_info.author.id
+		if reason == None:
+			view = ban_easy_reason()
+			await ban.send("Banの理由を選択してください。", view=view)
+			interaction = await bot.wait_for(event="interaction", check=interaction_check)
+			if interaction.data["values"][0] == "doubt_user":
+				reason = "不審なユーザー"
+			elif interaction.data["values"][0] == "spam_user":
+				reason = "荒らし行為をした"
+			elif interaction.data["values"][0] == "custom":
+				await ban.send("理由を設定してください。")
+				new_reason = await bot.wait_for("message", check=new_reason_check)
+				reason = new_reason.content
+			elif interaction.data["values"][0] == "null":
+				pass
 		user = await bot.fetch_user(int(ban_user))
 		await ban.guild.ban(user, reason=reason)
 		BanNotify = nextcord.Embed(title="Ban", description=f"ユーザーのBanを実行しました。", color=0x008000)
@@ -1298,7 +1365,11 @@ async def ban(ban, request_ban_user, reason="Banned"):
 async def unban(unban, id:int):
 	print("[Run]コマンド「unban」が実行されました")
 	if unban.author.guild_permissions.administrator:
-		user = await bot.fetch_user(id)
+		try:
+			user = await bot.fetch_user(id)
+		except UserNotFound:
+			await unban.send("ユーザーが見つかりませんでした。")
+			return
 		await unban.guild.unban(user)
 		UNBanNotify = nextcord.Embed(title="UnBan", description=f"ユーザーのUnBanを実行しました。", color=0x008000)
 		UNBanNotify.add_field(name="実行者の情報", value=f"名前: {unban.author}\nID: {unban.author.id}", inline=False)
@@ -1317,11 +1388,12 @@ async def banlist(banlist):
 	await banlist.send(embed=bl)
 
 @bot.command()
-async def slowmode(slowmode, delay: int):
+async def slowmode(slowmode, delay):
 	print("[Run]コマンド「slowmode」が実行されました")
 	if slowmode.author.guild_permissions.manage_channels:
-		await slowmode.channel.edit(slowmode_delay=int(delay))
-		await slowmode.send(f"低速モードの時間を{delay}秒にしました。")
+		response = convert_seconds(delay)
+		await slowmode.channel.edit(slowmode_delay=int(response))
+		await slowmode.send(f"低速モードの時間を{response}秒にしました。")
 	else:
 		await slowmode.send("権限が足りません。\n少なくともチャンネルの編集権限を持っている必要があります。")
 
@@ -1329,7 +1401,7 @@ async def slowmode(slowmode, delay: int):
 async def report(report, *, content):
 	print("[Run]コマンド「report」が実行されました")
 	await report.send("レポートを送信します。")
-	get_user = await bot.fetch_user(12345)
+	get_user = await bot.fetch_user()
 	await get_user.send(f"レポートが届きました。\n送信元: {report.author}\n内容: {content}")
 	await report.send("レポートが送信されました。")
 
