@@ -32,14 +32,13 @@ SOFTWARE.
 - json
 - nest_asyncio
 - datetime
-- traceback2
+- traceback
 - requests
 - nextcord
 - asyncio
 - yaml(pyyaml)
 ## デフォルトライブラリ以外
 - nest_asyncio
-- traceback2
 - requests
 - nextcord
 - asyncio
@@ -47,7 +46,6 @@ SOFTWARE.
 ## requirements.txt
 ```
 nest_asyncio
-traceback2
 requests
 nextcord
 asyncio
