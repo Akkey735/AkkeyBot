@@ -30,6 +30,7 @@ import re
 
 from nextcord.errors import LoginFailure
 from nextcord.ext.commands.errors import UserNotFound
+from nextcord.permissions import PermissionOverwrite
 print("[StartUp]ライブラリ「re」をインポートしました")
 from json.decoder import JSONDecodeError
 print("[StartUp]ライブラリ「json」のパッケージ「decoder」に含まれている「JsonDecodeError」をインポートしました")
@@ -219,7 +220,7 @@ print("[StartUp]Jsonファイル「config.yml」をロードしました")
 
 # Settings
 prefix = ConfigLoad["prefix"]
-owners = []
+owners = [12345]
 
 bot = commands.AutoShardedBot(
 	command_prefix=(get_prefix),
@@ -262,6 +263,10 @@ async def on_command_error(_error, error):
 		return
 	elif isinstance(error, MissingPermissions):
 		print("[Defined error]想定済みのエラー(MissingPermissions)が発生しました。")
+		await _error.reply("Bot自体の権限が足りません。")
+		return
+	elif isinstance(error, PermissionError):
+		print("[Defined error]想定済みのエラー(PermissionError)が発生しました。")
 		await _error.reply("Bot自体の権限が足りません。")
 		return
 	elif isinstance(error, NotOwner):
@@ -339,7 +344,7 @@ async def help(help, t=None, page=None):
 			await help.send(f"コマンド「{get_prefix_2(gid=help.guild.id)}help cmd 1」でコマンド一覧を表示できます。\n(ページ: 0/5)")
 		elif page == "1":
 			HelpPage1 = nextcord.Embed(title="コマンド一覧 - 1")
-			HelpPage1.add_field(name="update", value="これまでアップデート履歴と変更ログを見ることができます。", inline=False)
+			HelpPage1.add_field(name="tokenec [token*]", value="Tokenが有効か確認します。", inline=False)
 			HelpPage1.add_field(name="say [type(msg/ embed)] [message]", value="Botに言葉をしゃべらせることができます。", inline=False)
 			HelpPage1.add_field(name="roleper [@MentionRole]", value="メンションしたロールの権限を見ることができます。", inline=False)
 			HelpPage1.add_field(name="memberper [@Mention]", value="メンションしたユーザーの権限を見ることができます。", inline=False)
@@ -347,7 +352,7 @@ async def help(help, t=None, page=None):
 			await help.send(embed=HelpPage1)
 		elif page == "2":
 			HelpPage2 = nextcord.Embed(title="コマンド一覧 - 2")
-			HelpPage2.add_field(name="getmojang", value="Mojangサーバーのステータスを表示します。", inline=False)
+			HelpPage2.add_field(name="tokenc [token*]", value="Tokenの情報を詳細に確認します。", inline=False)
 			HelpPage2.add_field(name="serach [@Mention / UserID*]", value="IDのユーザーの情報を取得します。", inline=False)
 			HelpPage2.add_field(name="banlist", value="サーバーからBanされているユーザーを一覧します。", inline=False)
 			HelpPage2.add_field(name="kick [@Mentioin*] [Reason]", value="ユーザーのKickを実行します。", inline=False)
@@ -371,9 +376,8 @@ async def help(help, t=None, page=None):
 			await help.send(embed=HelpPage4)
 		elif page == "5":
 			HelpPage5 = nextcord.Embed(title="コマンド一覧 - 5")
-			HelpPage5.add_field(name="tokenec [token*]", value="Tokenが有効か確認します。", inline=False)
-			HelpPage5.add_field(name="tokenc [token*]", value="Tokenの情報を詳細に確認します。", inline=False)
-			HelpPage5.add_field(name="dupe [Dupe Type*] [既存のChannel ID(or Role ID)*] [New Channel Name(or Role Name)*]", value="カテゴリまたはロールを複製します。")
+			HelpPage5.add_field(name="dupe [Dupe Type*] [既存のCategory ID(or Role ID)*] [New Category Name(or Role Name)*]", value="カテゴリまたはロールを複製します。")
+			HelpPage5.add_field(name="lock", value="実行したチャンネルをロックダウンします。")
 		else:
 			await help.send("無効な引数です。")
 	elif t == "features":
@@ -386,51 +390,6 @@ async def help(help, t=None, page=None):
 		await help.send("無効な引数です。")
 
 @bot.command()
-async def update(update):
-	print("[Run]コマンド「update」が実行されました")
-	UpdateInfo = nextcord.Embed(title="アップデート履歴", color=0xff4500)
-	UpdateInfo.add_field(name="Bot-Private-Development-#1(Development)", value="最初の動作テスト", inline=False)
-	UpdateInfo.add_field(name="Bot-Private-Development-#2(Development)", value="- コマンド実行時のエラーを改善しました\n- unban追加", inline=False)
-	UpdateInfo.add_field(name="Bot-Private-Development-#3(Development)", value="- 表示バージョンの違いの修正\n- ban関連のの権限調整", inline=False)
-	UpdateInfo.add_field(name="Bot-Private-Development-#4(Development)", value="- getmcsvコマンド追加", inline=False)
-	UpdateInfo.add_field(name="Bot-Private-Development-#5(Development)", value="- Cooldownとそれに関するメッセージ追加\n- NotFoundメッセージのコード修正", inline=False)
-	UpdateInfo.add_field(name="Bot-Private-Development-#6(Development)", value="- ログシステム追加\n- roleperとmemberperコマンドを追加", inline=False)
-	UpdateInfo.add_field(name="Bot-Private-Development-#7(Development)", value="- インデントに関する不具合を修正\n- コマンド権限の調整\n- getmojangコマンド追加", inline=False)
-	UpdateInfo.add_field(name="Bot-Private-Development-#8(Development)", value="- 会話機能の追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#9(Development)", value="- ログ表示の改善", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#10(Development)", value="- updateコマンドの表示改善\n- sapiコマンドを追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#11(Development)", value="- helpコマンドのinline設定を見直し\n- Cooldownのメッセージを見直し\n- Python版等をなくしBotバージョンを統合", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#12(Development)", value="- updateコマンド表示の大幅な変更\n - setpreコマンド削除\n- banlistコマンドの改良", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#13(Development)", value="- getmojangのステータス表示を色表示に変更\n- serachコマンドのエラーの例外を作成\n- DEV#9が存在しない問題を解決", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#14(Development)", value="- banlistコマンドを改良\n- 2つのコマンドを新規追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#15(Development)", value="- icodeiコマンドを追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#16(Development)", value="- icodeiコマンドを廃止", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#17(Development)", value="- Bot参加時のメッセージを追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#18(Development)", value="- Globalban機能を追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#19(Development)", value="- mute機能を追加",inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#20(Development)", value="- lookupコマンドの不具合の修正\n- サーバーごとにprefixを変更できるようにしました\n- muteコマンドの権限設定を追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#21(Development)", value="- setpreコマンドの追加\n- helpコマンドの表示の修正", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#22(Development)", value="- 複数の不具合を修正", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#23(Development)", value="- stopコマンドを修正\n- tokenecとtokencコマンドを追加\n- art(AntiRealToken)システムを追加\n- qiコマンドを追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#24(Development)", value="- nitrocコマンドを追加\n- invitecコマンドを追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#25(Development)", value="- redeemコマンドを追加\n- Plus機能を追加", inline=False)
-	UpdateInfo.add_field(name="Bot-PreRerese-Development-#26(Development)", value="- 複数の不具合を修正", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.0", value="- 複数の不具合を修正\n- Botコマンドを追加\n- plus機能やそれに関することを完全削除\n- pingコマンド追加", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.1", value="- glist追加\n- runコマンドを追加\n- 一部のユーザーしか実行できないコードはhelpから削除\n- サーバーごとにNGWordを追加できるように\n- helpコマンドの表示変更", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.2", value="- 不具合の修正", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.3", value="- Lookupコマンドで多くの情報を知れるように。", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.4", value="- ngwordシステム削除\n- helpコマンド改善\n- その他複数コマンド改善\n- gban削除", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.5", value="- 内部的調整", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.6", value="- 内部的な変更", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.7", value="- カテゴリおよびロールの複製コマンド追加\n- sapiコマンドの改良", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.8", value="- 自動応答の安定性向上", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.0.9", value="- 設定のロードの安全性を向上\n- 複数のエラーを修正\n- 複数のコマンドを削除", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.1.0", value="- helpのfeaturesを修正\n- dupeコマンドを修正\n- Botのアクティビティを変更", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.1.1(Latest)", value="- invitecコマンドの修正\n- アクティビティのサーバー数を1秒ごとに更新\n- 自動会話機能を最適化\n- stopコマンド消去\n- すべてのコマンドのクールダウン削除", inline=False)
-	UpdateInfo.add_field(name="Bot-Version-1.2.0(Latest)", value="- tempbanのban解除日を表示するように\n- slowmodeの指定でsやhを使えるように\n- getmojangコマンドを消去\n- 2つの不具合を修正\n- ban時の理由を簡単に指定できるように", inline=False)
-	await update.send(embed=UpdateInfo)
-
-@bot.command()
 async def ping(ping, t="normal"):
 	print("[Run]コマンド「ping」が実行されました")
 	if t == "normal": 
@@ -439,8 +398,25 @@ async def ping(ping, t="normal"):
 		p = float(bot.latency)
 	else:
 		await ping.send("引数が不正です。")
+		return
 	ping_result = nextcord.Embed(title="Ping測定", description=f"Ping値: {p}ms\nPingタイプ: {t}", color=0x7cfc00)
 	await ping.send(embed=ping_result)
+
+@bot.command()
+async def lock(lock):
+	print("[Run]コマンド「lock」が実行されました。")
+	roles = bot.get_guild(int(lock.guild.id)).roles
+	channel = await bot.fetch_channel(lock.channel.id)
+	overwrite = nextcord.PermissionOverwrite()
+	overwrite.send_messages = False
+	for role in roles:
+		try:
+			await channel.set_permissions(role, overwrite=overwrite)
+		except MissingPermissions:
+			pass
+		except PermissionError:
+			pass
+	await lock.send("正常にチャンネルをロックダウンしました。\n注意: 設定できなかった設定はスキップされます。")
 
 @bot.command()
 async def dupe(dupe, t, id, name):
@@ -1401,7 +1377,7 @@ async def slowmode(slowmode, delay):
 async def report(report, *, content):
 	print("[Run]コマンド「report」が実行されました")
 	await report.send("レポートを送信します。")
-	get_user = await bot.fetch_user()
+	get_user = await bot.fetch_user(12345)
 	await get_user.send(f"レポートが届きました。\n送信元: {report.author}\n内容: {content}")
 	await report.send("レポートが送信されました。")
 
