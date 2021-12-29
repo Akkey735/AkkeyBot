@@ -44,12 +44,15 @@ import requests
 print("[StartUp]ライブラリ「requests」をインポートしました")
 import nextcord
 print("[StartUp]ライブラリ「nextcord」をインポートしました")
+import dateutil.parser
+print("[StartUp]ライブラリ「dateutil」をインポートしました")
 import asyncio
 print("[StartUp]ライブラリ「asyncio」をインポートしました")
 import json
 print("[StartUp]ライブラリ「json」をインポートしました")
 import yaml
 print("[StartUp]ライブラリ「yaml」をインポートしました")
+from dateutil.tz import *
 from nextcord.ext import commands, tasks
 print("[StartUp]ライブラリ「nextcord」のパッケージ「commands」をインポートしました")
 from nextcord.ext.commands import CommandNotFound, CommandOnCooldown, NotOwner, MemberNotFound, RoleNotFound, MissingRequiredArgument, MissingPermissions
@@ -95,6 +98,18 @@ def Start_up_message(): # on_ready()関数で使用
 	print("Bot has been launch")
 	print(f"Bot version is {version}")
 print("[StartUp]関数「Start_up_message」をロードしました")
+
+def run_timeout(gid, uid, tout): # timeoutコマンドで使用
+	response = requests.get(f"https://discord.com/api/v9/users/{uid}/profile?with_mutual_guilds=true&guild_id={gid}", headers={"Authorization": "Bot " + ConfigLoad["token"]}).json()
+	print(response)
+	if response["communication_disabled_until"] == None or int(dateutil.parser.parse(str(response["communication_disabled_until"])).timestamp()) < int(datetime.datetime.now().timestamp()):
+		seconds_tout = convert_seconds(tout)
+		end_unix_time = datetime.datetime.now().timestamp() + int(seconds_tout)
+		end_datetime = datetime.datetime.fromtimestamp(end_unix_time).replace(tzinfo=tzutc()).isoformat()
+		requests.patch(f"https://discord.com/api/v9/guilds/{gid}/members/{uid}", headers={"Content-Type": "Application/Json", "Authorization": "Bot " + ConfigLoad["token"], "User-Agent": "AkkeyBot"}, json={"communication_disabled_until": end_datetime})
+		return True
+	else:
+		return False
 
 def get_prefix(bot, message): # commandsのBot関数で使用
 	with open("prefix.json", "r") as f:
@@ -388,6 +403,14 @@ async def help(help, t=None, page=None):
 		await help.send(embed=Features)
 	else:
 		await help.send("無効な引数です。")
+
+@bot.command()
+async def timeout(timeout, member: nextcord.Member, tout):
+	response = run_timeout(gid=timeout.guild.id, uid=member.id, tout=tout)
+	if response == True:
+		await timeout.send("正常にTimeoutを実行しました。\n注意: 実行できてない場合は何らかのエラーが発生しています。\nこのエラーは想定外のエラーとしては処理されません。")
+	else:
+		await timeout.send("正常にTimeoutを実行できませんでした。\nこのエラーは想定外のエラーとしては処理されません。")
 
 @bot.command()
 async def ping(ping, t="normal"):
@@ -1046,7 +1069,7 @@ async def clear(clear, amout="10"):
 		await clear.send("権限がたりません。管理者である必要があります。")
 	
 @bot.command()
-async def serach(serach, u=None):
+async def user(serach, u=None):
 	print("[Run]コマンド「serach」が実行されました")
 	if u == None:
 		await serach.send("引数が無効です。")
