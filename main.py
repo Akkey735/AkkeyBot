@@ -3,7 +3,7 @@
 """
 MIT License
 
-Copyright (c) 2021 Akkey
+Copyright (c) 2021-2022 Akkey
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -98,18 +98,6 @@ def Start_up_message(): # on_ready()関数で使用
 	print("Bot has been launch")
 	print(f"Bot version is {version}")
 print("[StartUp]関数「Start_up_message」をロードしました")
-
-def run_timeout(gid, uid, tout): # timeoutコマンドで使用
-	response = requests.get(f"https://discord.com/api/v9/users/{uid}/profile?with_mutual_guilds=true&guild_id={gid}", headers={"Authorization": "Bot " + ConfigLoad["token"]}).json()
-	print(response)
-	if response["communication_disabled_until"] == None or int(dateutil.parser.parse(str(response["communication_disabled_until"])).timestamp()) < int(datetime.datetime.now().timestamp()):
-		seconds_tout = convert_seconds(tout)
-		end_unix_time = datetime.datetime.now().timestamp() + int(seconds_tout)
-		end_datetime = datetime.datetime.fromtimestamp(end_unix_time).replace(tzinfo=tzutc()).isoformat()
-		requests.patch(f"https://discord.com/api/v9/guilds/{gid}/members/{uid}", headers={"Content-Type": "Application/Json", "Authorization": "Bot " + ConfigLoad["token"], "User-Agent": "AkkeyBot"}, json={"communication_disabled_until": end_datetime})
-		return True
-	else:
-		return False
 
 def get_prefix(bot, message): # commandsのBot関数で使用
 	with open("prefix.json", "r") as f:
@@ -235,7 +223,7 @@ print("[StartUp]Jsonファイル「config.yml」をロードしました")
 
 # Settings
 prefix = ConfigLoad["prefix"]
-owners = [12345]
+owners = []
 
 bot = commands.AutoShardedBot(
 	command_prefix=(get_prefix),
@@ -297,7 +285,7 @@ async def on_command_error(_error, error):
 	raise error
 # Error処理
 
-@tasks.loop(seconds=1)
+@tasks.loop(seconds=15)
 async def loop():
 	await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers | AkkeyBot', type=1))
 
@@ -403,14 +391,6 @@ async def help(help, t=None, page=None):
 		await help.send(embed=Features)
 	else:
 		await help.send("無効な引数です。")
-
-@bot.command()
-async def timeout(timeout, member: nextcord.Member, tout):
-	response = run_timeout(gid=timeout.guild.id, uid=member.id, tout=tout)
-	if response == True:
-		await timeout.send("正常にTimeoutを実行しました。\n注意: 実行できてない場合は何らかのエラーが発生しています。\nこのエラーは想定外のエラーとしては処理されません。")
-	else:
-		await timeout.send("正常にTimeoutを実行できませんでした。\nこのエラーは想定外のエラーとしては処理されません。")
 
 @bot.command()
 async def ping(ping, t="normal"):
@@ -1400,7 +1380,7 @@ async def slowmode(slowmode, delay):
 async def report(report, *, content):
 	print("[Run]コマンド「report」が実行されました")
 	await report.send("レポートを送信します。")
-	get_user = await bot.fetch_user(12345)
+	get_user = await bot.fetch_user()
 	await get_user.send(f"レポートが届きました。\n送信元: {report.author}\n内容: {content}")
 	await report.send("レポートが送信されました。")
 
@@ -1428,4 +1408,4 @@ except LoginFailure:
 	print("Login Failed")
 	exit()
 
-# Copyright © 2021 Akkey57492
+# Copyright © 2021-2022 Akkey57492
