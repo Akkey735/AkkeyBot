@@ -324,6 +324,16 @@ async def on_guild_join(guild):
 	guilds_prefix[str(guild.id)] = "."
 	with open("prefix.json", "w") as f:
 		json.dump(guilds_prefix, f, indent=4)
+	with open("amm.json", "r") as f:
+		amm_data = json.load(f)
+	amm_data[str(guild.id)] = {}
+	amm_data[str(guild.id)]["amm"] = "0"
+	amm_data[str(guild.id)]["maxuser"] = "3"
+	amm_data[str(guild.id)]["maxrole"] = "5"
+	amm_data[str(guild.id)]["mute"] = "0"
+	amm_data[str(guild.id)]["mrole"] = "0"
+	with open("amm.json", "w") as f:
+		json.dump(amm_data, f, indent=4)
 
 @bot.event
 async def on_guild_remove(guild):
@@ -338,6 +348,11 @@ async def on_guild_remove(guild):
 	prefixes.pop(str(guild.id))
 	with open("prefix.json", "w") as f:
 		json.dump(prefixes, f, indent=4)
+	with open("amm.json", "r") as f:
+		amm_data = json.load(f)
+	amm_data.pop(str(guild.id))
+	with open("amm.json", "w") as f:
+		json.dump(amm_data, f, indent=4)
 # Bot Events
 
 @bot.command()
@@ -356,7 +371,7 @@ async def help(help, t=None, page=None):
 		elif page == "2":
 			HelpPage2 = nextcord.Embed(title="コマンド一覧 - 2")
 			HelpPage2.add_field(name="tokenc [token*]", value="Tokenの情報を詳細に確認します。", inline=False)
-			HelpPage2.add_field(name="serach [@Mention / UserID*]", value="IDのユーザーの情報を取得します。", inline=False)
+			HelpPage2.add_field(name="user [@Mention / UserID*]", value="IDのユーザーの情報を取得します。", inline=False)
 			HelpPage2.add_field(name="banlist", value="サーバーからBanされているユーザーを一覧します。", inline=False)
 			HelpPage2.add_field(name="kick [@Mentioin*] [Reason]", value="ユーザーのKickを実行します。", inline=False)
 			HelpPage2.add_field(name="tempban [@Mention / UserID*] [Time(s:秒 / m:分 / h:時間 / w:週間)*] [Reason]", value="一時的なBanです。", inline=False)
@@ -380,7 +395,7 @@ async def help(help, t=None, page=None):
 		elif page == "5":
 			HelpPage5 = nextcord.Embed(title="コマンド一覧 - 5")
 			HelpPage5.add_field(name="dupe [Dupe Type*] [既存のCategory ID(or Role ID)*] [New Category Name(or Role Name)*]", value="カテゴリまたはロールを複製します。")
-			HelpPage5.add_field(name="lock", value="実行したチャンネルをロックダウンします。")
+			await help.send(embed=HelpPage5)
 		else:
 			await help.send("無効な引数です。")
 	elif t == "features":
@@ -393,33 +408,110 @@ async def help(help, t=None, page=None):
 		await help.send("無効な引数です。")
 
 @bot.command()
-async def ping(ping, t="normal"):
+async def ping(ping):
 	print("[Run]コマンド「ping」が実行されました")
-	if t == "normal": 
-		p = int(bot.latency)
-	elif t == "float":
-		p = float(bot.latency)
-	else:
-		await ping.send("引数が不正です。")
-		return
-	ping_result = nextcord.Embed(title="Ping測定", description=f"Ping値: {p}ms\nPingタイプ: {t}", color=0x7cfc00)
-	await ping.send(embed=ping_result)
+	ping_check = nextcord.Embed(title="Ping測定", description="Ping値: 測定中", color=0x7cfc00)
+	ping_message = await ping.send(embed=ping_check)
+	ping_value = round(bot.latency, 1)
+	ping_result = nextcord.Embed(title="Ping測定", description=f"Ping値: {ping_value}ms", color=0x7cfc00)
+	await ping_message.edit(embed=ping_result)
 
 @bot.command()
-async def lock(lock):
-	print("[Run]コマンド「lock」が実行されました。")
-	roles = bot.get_guild(int(lock.guild.id)).roles
-	channel = await bot.fetch_channel(lock.channel.id)
-	overwrite = nextcord.PermissionOverwrite()
-	overwrite.send_messages = False
-	for role in roles:
+async def amm(amm, settings_type=None, set_content=None):
+	with open("amm.json", "r", encoding="utf-8") as file:
+		amm_data = json.load(file)
+	if settings_type == "toggle":
+		if set_content == "on":
+			if amm_data[str(amm.guild.id)]["amm"] == "1":
+				error_message = await amm.send("すでにAntiMassMentionsは有効化済みです。")
+				await asyncio.sleep(5000)
+				await error_message.delete()
+				return
+			amm_data[str(amm.guild.id)]["amm"] = "1"
+			await amm.send("AntiMassMentionsを有効にしました。")
+		elif set_content == "off":
+			if amm_data[str(amm.guild.id)]["amm"] == "0":
+				error_message = await amm.send("すでにAntiMassMentionsは無効化済みです。")
+				await asyncio.sleep(5000)
+				await error_message.delete()
+				return
+			amm_data[str(amm.guild.id)]["amm"] = "0"
+			await amm.send("AntiMassMentionsを無効にしました。")
+		else:
+			error_message = await amm.send("無効なToggleタイプです。")
+			await asyncio.sleep(5000)
+			await error_message.delete()
+			return
+	elif settings_type == "user":
+		if amm_data[str(amm.guild.id)]["amm"] == "0":
+			error_message = await amm.send("AntiMassMentionsは無効です。")
+			await asyncio.sleep(5000)
+			await error_message.delete()
+			return
 		try:
-			await channel.set_permissions(role, overwrite=overwrite)
-		except MissingPermissions:
-			pass
-		except PermissionError:
-			pass
-	await lock.send("正常にチャンネルをロックダウンしました。\n注意: 設定できなかった設定はスキップされます。")
+			max_mentions = int(set_content)
+		except TypeError:
+			error_message = await amm.send("メンションの許容量が不正です。")
+			await asyncio.sleep(5000)
+			await error_message.delete()
+			return
+		if max_mentions < 3 or max_mentions > 50:
+			error_message = await amm.send("許容量が3より少ないか、50より多いです。")
+			await asyncio.sleep(5000)
+			await error_message.delete()
+			return
+		amm_data[str(amm.guild.id)]["maxuser"] = str(set_content)
+		await amm.send(f"ユーザーメンション許容量を{set_content}に設定しました。")
+	elif settings_type == "role":
+		if amm_data[str(amm.guild.id)]["amm"] == "0":
+			error_message = await amm.send("AntiMassMentionsは無効です。")
+			await asyncio.sleep(5000)
+			await error_message.delete()
+			return
+		try:
+			max_mentions = int(set_content)
+		except TypeError:
+			error_message = await amm.send("メンションの許容量が不正です。")
+			await asyncio.sleep(5000)
+			await error_message.delete()
+			return
+		if max_mentions < 2 or max_mentions > 15:
+			error_message = await amm.send("許容量が2より少ないか、15より多いです。")
+			await asyncio.sleep(5000)
+			await error_message.delete()
+			return
+		amm_data[str(amm.guild.id)]["maxrole"] = str(set_content)
+		await amm.send(f"ユーザーメンション許容量を{set_content}に設定しました。")
+	elif settings_type == "tmute":
+		if set_content == "on":
+			if amm_data[str(amm.guild.id)]["mute"] == "1":
+				error_message = await amm.send("すでにAntiMassMentionsのMuteは有効化済みです。")
+				await asyncio.sleep(5000)
+				await error_message.delete()
+				return
+			amm_data[str(amm.guild.id)]["mute"] = "1"
+			await amm.send("AntiMassMentionsのMuteを有効にしました。")
+		elif set_content == "off":
+			if amm_data[str(amm.guild.id)]["mute"] == "0":
+				error_message = await amm.send("すでにAntiMassMentionsのMuteは無効化済みです。")
+				await asyncio.sleep(5000)
+				await error_message.delete()
+				return
+			amm_data[str(amm.guild.id)]["mute"] = "0"
+			await amm.send("AntiMassMentionsのMuteを無効にしました。")
+	elif settings_type == "rmute":
+		if amm_data[str(amm.guild.id)]["mute"] == "0":
+			await amm.send("AntiMassMentionsのMuteロール機能は無効です。")
+			return
+		amm_data[str(amm.guild.id)]["mrole"] = str(set_content)
+		await amm.send("AntiMassMentionsのMuteロールを設定しました。")
+	else:
+		error_message = await amm.send("不正なAMMオプションです。")
+		await asyncio.sleep(5000)
+		await error_message.delete()
+		return
+	with open("amm.json", "w") as file:
+		json.dump(amm_data, file, indent=4)
 
 @bot.command()
 async def dupe(dupe, t, id, name):
