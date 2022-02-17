@@ -28,45 +28,50 @@ import requests
 import nextcord
 import base64
 import yaml
+import json
 
 from nextcord.errors import NotFound
 
-client = nextcord.AutoShardedClient(shard_count=10)
+client = nextcord.Client(shard_count=10)
 with open("config.yml", "r", encoding="utf8") as file:
-    config = yaml.safe_load(file)
-    
-async def check_token(token) {
-	headers = {
-		"Authorization": token
-	}
-	response = requests.get("https://discord.com/api/v9/users/@me", headers=headers)
-	if response.status_code == 200:
-		return True
-	else:
-		return False
-}
+	config = yaml.safe_load(file)
 
 @client.event
 async def on_ready():
-    print("AkkeyBot(ServerProtect)が起動されました。")
+	print("AkkeyBot(ServerProtect)が起動されました。")
 
 @client.event
 async def on_message(message):
-    unchecked_token_split = message.content.split(".")
-    checked_response = await check_token(message.content)
-    if message.content.startswith("mfa.") and len(unchecked_token_split) == 2:
-        pass
-    elif len(unchecked_token_split) == 3 and checked_response == True:
-        await message.delete()
-   	if int(len(message.mentions)) > 5:
-   		await message.delete()
-   		warning_message = await message.reply(f"<@{message.author.id}> 最大メンション数を超過しています")
-   		await asyncio.sleep(5000)
-   		await warning_message.delete()
-   	if int(len(message.role_mentions)) > 3:
-   		await message.delete()
-   		warning_message = await message.reply(f"<@{message.author.id}> 最大メンション数を超過しています")
-   		await asyncio.sleep(5000)
-   		await warning_message.delete()
+	with open("amm.json", "r") as file:
+		amm_guild_data = json.load(file)[str(message.guild.id)]
+	try:
+		amm_guild_data["amm"]
+	except KeyError:
+		return
+	if amm_guild_data["amm"] == "1":
+		if int(len(message.mentions)) > int(amm_guild_data["maxuser"]):
+			await message.delete()
+			if amm_guild_data["mute"] == "1":
+				guild = client.get_guild(message.guild.id)
+				member = guild.get_member(message.author.id)
+				role = guild.get_role(int(amm_guild_data["mrole"]))
+				if role == None:
+					return
+				try:
+					await member.add_roles(role)
+				except TypeError:
+					return
+		elif int(len(message.role_mentions)) > int(amm_guild_data["maxrole"]):
+			await message.delete()
+			if amm_guild_data["mute"] == "1":
+				guild = client.get_guild(message.guild.id)
+				member = guild.get_member(message.author.id)
+				role = guild.get_role(int(amm_guild_data["mrole"]))
+				if role == None:
+					return
+				try:
+					await member.add_roles(role)
+				except TypeError:
+					return
 
 client.run(config["token"])
