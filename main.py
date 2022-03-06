@@ -229,7 +229,7 @@ bot = commands.AutoShardedBot(
 	command_prefix=(get_prefix),
 	help_command=None,
 	owner_ids = set(owners),
-	intents=nextcord.Intents.default().all(),
+	intents=nextcord.Intents.all()
 	shard_count=10
 )
 
@@ -287,14 +287,14 @@ async def on_command_error(_error, error):
 
 @tasks.loop(seconds=15)
 async def loop():
-	await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers | AkkeyBot', type=1))
+	await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers', type=1))
 
 # Bot Events
 @bot.event
 async def on_ready():
 	if ConfigLoad["start-notify"] == "true":
 		Start_up_message()
-		await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers | AkkeyBot', type=1))
+		await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers', type=1))
 		notify_channel_id = ConfigLoad["chid"]
 		notify_channel = await bot.fetch_channel(int(notify_channel_id))
 		version = ConfigLoad["version"]
@@ -302,7 +302,7 @@ async def on_ready():
 		await notify_channel.send(f"Bot version is {version}")
 	else:
 		Start_up_message()
-		await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers | AkkeyBot', type=1))
+		await bot.change_presence(activity=nextcord.Game(name=f'{len(bot.guilds)}servers', type=1))
 
 @bot.event
 async def on_guild_join(guild):
@@ -312,8 +312,6 @@ async def on_guild_join(guild):
 			await guild.system_channel.send(f'AkkeyBotの導入誠にありがとうございます。\n「{get_prefix_2(guild.id)}help cmd 1」で全てのコマンドを表示することができます。\nhelpコマンドの「1」の所を変えるとページを変えることができます。')
 		except nextcord.errors.Forbidden:
 			pass
-	else:
-		pass
 	with open("mute.json", "r") as f:
 		mute_role_ids = json.load(f)
 	mute_role_ids[str(guild.id)] = "0"
@@ -331,7 +329,6 @@ async def on_guild_join(guild):
 	amm_data[str(guild.id)]["maxuser"] = "3"
 	amm_data[str(guild.id)]["maxrole"] = "5"
 	amm_data[str(guild.id)]["mute"] = "0"
-	amm_data[str(guild.id)]["mrole"] = "0"
 	with open("amm.json", "w") as f:
 		json.dump(amm_data, f, indent=4)
 
@@ -340,19 +337,28 @@ async def on_guild_remove(guild):
 	print(f"サーバー「{guild.name}」から離脱しました")
 	with open("mute.json", "r") as f:
 		mute_role_ids = json.load(f)
-	mute_role_ids.pop(str(guild.id))
-	with open("mute.json", "w") as f:
-		json.dump(mute_role_ids, f, indent=4)
+	try:
+		mute_role_ids.pop(str(guild.id))
+		with open("mute.json", "w") as f:
+			json.dump(mute_role_ids, f, indent=4)
+	except KeyError:
+		pass
 	with open("prefix.json", "r") as f:
 		prefixes = json.load(f)
-	prefixes.pop(str(guild.id))
-	with open("prefix.json", "w") as f:
-		json.dump(prefixes, f, indent=4)
+	try:
+		prefixes.pop(str(guild.id))
+		with open("prefix.json", "w") as f:
+			json.dump(prefixes, f, indent=4)
+	except KeyError:
+		pass
 	with open("amm.json", "r") as f:
 		amm_data = json.load(f)
-	amm_data.pop(str(guild.id))
-	with open("amm.json", "w") as f:
-		json.dump(amm_data, f, indent=4)
+	try:
+		amm_data.pop(str(guild.id))
+		with open("amm.json", "w") as f:
+			json.dump(amm_data, f, indent=4)
+	except KeyError:
+		pass
 # Bot Events
 
 @bot.command()
@@ -415,9 +421,100 @@ async def ping(ping):
 	ping_value = round(bot.latency, 1)
 	ping_result = nextcord.Embed(title="Ping測定", description=f"Ping値: {ping_value}ms", color=0x7cfc00)
 	await ping_message.edit(embed=ping_result)
+	
+@bot.command()
+async def warn(warn, set_content=None, member: nextcord.Member=None):
+	if set_content == "warn":
+		with open("warn.json", "r") as file:
+			warn_data = json.load(file)
+		if warn_data[str(warn.guild.id)]["warn"] == "0":
+			await warn.send("Warn機能が有効ではありません。")
+		try:
+			get_warns = warn_data[str(warn.guild.id)][str(member.id)]
+		except KeyError:
+			get_warns = "0"
+		int_get_warns = int(get_warns)
+		int_get_warns += 1
+		warn_data[str(warn.guild.id)][str(member.id)] = str(int_get_warns)
+		with open("warn.json", "w") as file:
+			json.dump(warn_data, file, indent=4)
+		muted_status = "No"
+		if int(int_get_warns) > int(warn_data[str(warn.guild.id)]["limit"]):
+			with open("mute.json", "r", encoding="utf-8") as file:
+				mute_role_ids = json.load(file)
+			guild = bot.get_guild(warn.guild.id)
+			role = guild.get_role(int(mute_role_ids[str(warn.guild.id)]))
+			member = guild.get_member(member.id)
+			await member.add_roles(role)
+			muted_status = "Muted"
+		await warn.send("Warnをユーザーに与えました。\nミュートステータス: " + muted_status)
+	elif set_content == "toggle":
+		with open("warn.json", "r") as file:
+			warn_data = json.load(file)
+		if warn_data[str(warn.guild.id)]["warn"] == "0":
+			warn_data[str(warn.guild.id)]["warn"] = "1"
+		elif warn_data[str(warn.guild.id)]["warn"] == "1":
+			warn_data[str(warn.guild.id)]["warn"] = "0"
+		with open("warn.json", "w") as file:
+			json.dump(warn_data, file, indent=4)
+		await warn.send("設定しました。")
+	elif set_content == "punish":
+		with open("warn.json", "r") as file:
+			warn_data = json.load(file)
+		if warn_data[str(warn.guild.id)]["warn"] == "0":
+			await warn.send("Warnが無効です。")
+			return
+		await warn.send("**Kick** / **Ban** / **Mute**\nどれかをメッセージで送信してください。(Default: Ban)")
+		def check(m):
+			return warn.author.id == m.author.id
+		try:
+			msg = await bot.wait_for("message", check=check, timeout=30)
+		except asyncio.TimeoutError:
+			await warn.send("タイムアウトです。")
+			return
+		if msg.content == "Kick":
+			warn_data[str(warn.guild.id)]["punish"] = "Kick"
+			await warn.send("Limitに達した時の処置をKickに設定しました。")
+		elif msg.content == "Ban":
+			warn_data[str(warn.guild.id)]["punish"] = "Ban"
+			await warn.send("Limitに達した時の処置をBanに設定しました。")
+		elif msg.content == "Mute":
+			warn_data[str(warn.guild.id)]["punish"] = "Mute"
+			await warn.send("Limitに達した時の処置をMuteに設定しました。")
+		else:
+			await warn.send("無効な選択です。")
+			return
+		with open("warn.json", "w") as file:
+			json.dump(warn_data, file, indent=4)
+	elif set_content == "limit":
+		with open("warn.json", "r") as file:
+			warn_data = json.load(file)
+		if warn_data[str(warn.guild.id)]["warn"] == "0":
+			await warn.send("Warnが無効です。")
+			return
+		await warn.send("最大何個のWarnを受けたら処置をするか、メッセージで送信してください。(Default: 3)")
+		def check(m):
+			return warn.author.id == m.author.id
+		try:
+			msg = await bot.wait_for("message", check=check, timeout=30)
+		except asyncio.TimeoutError:
+			await warn.send("タイムアウトです。")
+			return
+		try:
+			int(msg.content)
+		except TypeError:
+			await warn.send("無効な数値です。")
+			return
+		warn_data[str(warn.guild.id)]["limit"] = msg.content
+		await warn.send("設定しました。")
+		with open("warn.json", "w") as file:
+			json.dump(warn_data, file, indent=4)
 
 @bot.command()
 async def amm(amm, settings_type=None, set_content=None):
+	if not amm.author.guild_permissions.administrator:
+		await amm.send("貴方はこのコマンドを使用する権限がありません")
+		return
 	with open("amm.json", "r", encoding="utf-8") as file:
 		amm_data = json.load(file)
 	if settings_type == "toggle":
@@ -475,14 +572,14 @@ async def amm(amm, settings_type=None, set_content=None):
 			await asyncio.sleep(5000)
 			await error_message.delete()
 			return
-		if max_mentions < 2 or max_mentions > 15:
+		if max_mentions < 2 or max_mentions > 25:
 			error_message = await amm.send("許容量が2より少ないか、15より多いです。")
 			await asyncio.sleep(5000)
 			await error_message.delete()
 			return
 		amm_data[str(amm.guild.id)]["maxrole"] = str(set_content)
 		await amm.send(f"ユーザーメンション許容量を{set_content}に設定しました。")
-	elif settings_type == "tmute":
+	elif settings_type == "mute":
 		if set_content == "on":
 			if amm_data[str(amm.guild.id)]["mute"] == "1":
 				error_message = await amm.send("すでにAntiMassMentionsのMuteは有効化済みです。")
@@ -499,12 +596,11 @@ async def amm(amm, settings_type=None, set_content=None):
 				return
 			amm_data[str(amm.guild.id)]["mute"] = "0"
 			await amm.send("AntiMassMentionsのMuteを無効にしました。")
-	elif settings_type == "rmute":
-		if amm_data[str(amm.guild.id)]["mute"] == "0":
-			await amm.send("AntiMassMentionsのMuteロール機能は無効です。")
+		else:
+			error_message = await amm.send("無効なToggleMuteタイプです。")
+			await asyncio.sleep(5000)
+			await error_message.delete()
 			return
-		amm_data[str(amm.guild.id)]["mrole"] = str(set_content)
-		await amm.send("AntiMassMentionsのMuteロールを設定しました。")
 	else:
 		error_message = await amm.send("不正なAMMオプションです。")
 		await asyncio.sleep(5000)
@@ -1500,4 +1596,4 @@ except LoginFailure:
 	print("Login Failed")
 	exit()
 
-# Copyright © 2021-2022 Akkey57492
+# Copyright © 2021 Akkey57492
