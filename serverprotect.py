@@ -32,7 +32,7 @@ import json
 
 from nextcord.errors import NotFound
 
-client = nextcord.Client(shard_count=10)
+client = nextcord.AutoShardedClient(intents=nextcord.Intents.all(), shard_count=10)
 with open("config.yml", "r", encoding="utf8") as file:
 	config = yaml.safe_load(file)
 
@@ -46,32 +46,43 @@ async def on_message(message):
 		amm_guild_data = json.load(file)[str(message.guild.id)]
 	try:
 		amm_guild_data["amm"]
+		amm_guild_data["maxrole"]
+		amm_guild_data["mute"]
+		amm_guild_data["maxuser"]
 	except KeyError:
 		return
 	if amm_guild_data["amm"] == "1":
 		if int(len(message.mentions)) > int(amm_guild_data["maxuser"]):
 			await message.delete()
 			if amm_guild_data["mute"] == "1":
-				guild = client.get_guild(message.guild.id)
-				member = guild.get_member(message.author.id)
-				role = guild.get_role(int(amm_guild_data["mrole"]))
-				if role == None:
+				with open("mute.json", "r", encoding="utf-8") as file:
+					try:
+						mute_role_id = json.load(file)[str(message.guild.id)]
+					except:
+						return
+				if mute_role_id == "0":
 					return
+				guild = client.get_guild(message.guild.id)
+				give_member = guild.get_member(message.author.id)
+				role = guild.get_role(int(mute_role_id))
 				try:
-					await member.add_roles(role)
-				except TypeError:
+					await give_member.add_roles(role)
+				except nextcord.errors.Forbidden:
 					return
 		elif int(len(message.role_mentions)) > int(amm_guild_data["maxrole"]):
 			await message.delete()
 			if amm_guild_data["mute"] == "1":
+				with open("mute.json", "r", encoding="utf-8") as file:
+					try:
+						mute_role_id = json.load(file)[str(message.guild.id)]
+					except:
+						return
 				guild = client.get_guild(message.guild.id)
-				member = guild.get_member(message.author.id)
-				role = guild.get_role(int(amm_guild_data["mrole"]))
-				if role == None:
-					return
+				give_member = guild.get_member(message.author.id)
+				role = guild.get_role(int(mute_role_id))
 				try:
-					await member.add_roles(role)
-				except TypeError:
+					await give_member.add_roles(role)
+				except nextcord.errorsForbidden:
 					return
 
 client.run(config["token"])
