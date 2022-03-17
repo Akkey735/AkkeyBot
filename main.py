@@ -108,74 +108,10 @@ def get_prefix(bot, message): # commandsのBot関数で使用
 		return "."
 print("[StartUp]関数「get_prefix」をロードしました")
 
-def get_prefix_2(gid): # commandsのBot関数意外に使う場合
-	with open("prefix.json", "r") as f:
-		prefixes = json.load(f)
-	try:
-		return prefixes[str(gid)]
-	except:
-		return "."
-print("[StartUp]関数「get_prefix_2」をロードしました")
-
-def token_check(token): # tokenecコマンドで使用
-	api_url = "https://discord.com/api/v6/auth/login"
-	header = {"Authorization": token}
-	response = requests.get(api_url, headers=header)
-	if response.status_code == 200:
-		return True
-	else:
-		return False
-print("[StartUp]関数「token_check」をロードしました")
-
-def token_info(token): # tokencコマンドで使用
-	res = requests.get("https://discordapp.com/api/v6/users/@me", headers={"Authorization": f"{token}"})
-	response = res.json()
-	try:
-		message = response["message"]
-		if message == "401: Unauthorized":
-			return "Tokenが無効です"
-	except:
-		pass
-	location = response["locale"]
-	name = response["username"]
-	tag = response["discriminator"]
-	username = f"{name}#{tag}"
-	client_id = response["id"]
-	email = response["email"]
-	phone_number = response["phone"]
-	adult = response["nsfw_allowed"]
-	doubleauth = response["mfa_enabled"]
-	if adult == True:
-		adu = "18歳以上"
-	else:
-		adu = "18歳以上"
-
-	if doubleauth == True:
-		dauth = "有効"
-	else:
-		dauth = "無効"
-
-	message = f"=== Token Checker ===\n国: {location}\nユーザーネーム: {username}\nユーザーID: {client_id}\nメールアドレス: {email}\n電話番号: {phone_number}\n年齢: {adu}\n二段階認証: {dauth}"
-	return message
-print("[StartUp]関数「token_info」をロードしました")
-
-def nitro_check(code): # nitrocコマンドで使用
-	response = requests.get(f"https://discordapp.com/api/v9/entitlements/gift-codes/{code}")
-	if response.status_code == 200:
-		return True
-	else:
-		return False
-print("[StartUp]関数「nitro_check」をロードしました")
-
-def invite_check(code): # invitecコマンドで使用
-	res = requests.get(f"https://discordapp.com/api/v9/invites/{code}")
-	response = res.json()
-	return response
-print("[StartUp]関数「invite_check」をロードしました")
-
 time_layout = {'s': 'seconds', 'm': 'minutes', 'h': 'hours', 'd': 'days', 'w': 'weeks'}
 def convert_seconds(time): # 時間計算
     return int(datetime.timedelta(**{time_layout.get(m.group('unit').lower(), 'seconds'): int(m.group('val'))for m in re.finditer(r'(?P<val>\d+)(?P<unit>[smhdw]?)', time, flags=re.I)}).total_seconds())
+print("[StartUp]関数「convert_seconds」をロードしました")
 # Function
 
 # Class
@@ -223,14 +159,14 @@ print("[StartUp]Jsonファイル「config.yml」をロードしました")
 
 # Settings
 prefix = ConfigLoad["prefix"]
-owners = []
+owners = [939781147540471818]
 
-bot = commands.AutoShardedBot(
+bot = commands.Bot(
 	command_prefix=(get_prefix),
 	help_command=None,
 	owner_ids = set(owners),
 	intents=nextcord.Intents.all()
-	shard_count=10
+	#shard_count=10
 )
 
 bot.remove_command("help")
@@ -246,7 +182,7 @@ async def on_command_error(_error, error):
 		return
 	elif isinstance(error, CommandOnCooldown):
 		print("[Defined error]想定済みのエラー(CommandOnCooldown)が発生しました。")
-		await _error.reply("次のコマンドを実行するには最大30秒待つ必要があります。")
+		await _error.reply("次のコマンドを実行するには数秒間待つ必要があります。")
 		return
 	elif isinstance(error, NotOwner):
 		print("[Defined error]想定済みのエラー(NotOwner)が発生しました。")
@@ -365,43 +301,38 @@ async def on_guild_remove(guild):
 async def help(help, t=None, page=None):
 	if t == "cmd":
 		if page == None:
-			await help.send(f"コマンド「{get_prefix_2(gid=help.guild.id)}help cmd 1」でコマンド一覧を表示できます。\n(ページ: 0/5)")
+			await help.send(f"コマンド「{get_prefix(bot, help.message)}help cmd 1」でコマンド一覧を表示できます。\n(ページ: 0/5)")
 		elif page == "1":
-			HelpPage1 = nextcord.Embed(title="コマンド一覧 - 1")
-			HelpPage1.add_field(name="tokenec [token*]", value="Tokenが有効か確認します。", inline=False)
-			HelpPage1.add_field(name="say [type(msg/ embed)] [message]", value="Botに言葉をしゃべらせることができます。", inline=False)
-			HelpPage1.add_field(name="roleper [@MentionRole]", value="メンションしたロールの権限を見ることができます。", inline=False)
-			HelpPage1.add_field(name="memberper [@Mention]", value="メンションしたユーザーの権限を見ることができます。", inline=False)
-			HelpPage1.add_field(name="getmcsv [type(normal / query)*] [Minecraftサーバーのアドレス*] [Minecraftサーバーのポート*]", value="指定したサーバーの参加人数やpingを取得します。", inline=False)
+			HelpPage1 = nextcord.Embed(title="コマンド一覧 - 1", description="説明の最初に「x」がついている場合は、特定の権限が必要です。")
+			HelpPage1.add_field(name="say [type(msg/ embed)] [message]", value="x | Botに言葉をしゃべらせることができます。", inline=False)
+			HelpPage1.add_field(name="roleper [@MentionRole]", value="o | メンションしたロールの権限を見ることができます。", inline=False)
+			HelpPage1.add_field(name="memberper [@Mention]", value="o | メンションしたユーザーの権限を見ることができます。", inline=False)
+			HelpPage1.add_field(name="getmcsv [type(normal / query)*] [Minecraftサーバーのアドレス*] [Minecraftサーバーのポート*]", value="o | 指定したサーバーの参加人数やpingを取得します。", inline=False)
 			await help.send(embed=HelpPage1)
 		elif page == "2":
-			HelpPage2 = nextcord.Embed(title="コマンド一覧 - 2")
-			HelpPage2.add_field(name="tokenc [token*]", value="Tokenの情報を詳細に確認します。", inline=False)
-			HelpPage2.add_field(name="user [@Mention / UserID*]", value="IDのユーザーの情報を取得します。", inline=False)
-			HelpPage2.add_field(name="banlist", value="サーバーからBanされているユーザーを一覧します。", inline=False)
-			HelpPage2.add_field(name="kick [@Mentioin*] [Reason]", value="ユーザーのKickを実行します。", inline=False)
-			HelpPage2.add_field(name="tempban [@Mention / UserID*] [Time(s:秒 / m:分 / h:時間 / w:週間)*] [Reason]", value="一時的なBanです。", inline=False)
+			HelpPage2 = nextcord.Embed(title="コマンド一覧 - 2", description="説明の最初に「x」がついている場合は、特定の権限が必要です。")
+			HelpPage2.add_field(name="warn [type(warn / toggle / punish / limit)] [settings]", value="x | Warnの設定と実行を行います", inline=False)
+			HelpPage2.add_field(name="user [@Mention / UserID]", value="o | IDのユーザーの情報を取得します。", inline=False)
+			HelpPage2.add_field(name="banlist", value="x | サーバーからBanされているユーザーを一覧します。", inline=False)
+			HelpPage2.add_field(name="kick [@Mentioin] [Reason]", value="x | ユーザーのKickを実行します。", inline=False)
+			HelpPage2.add_field(name="tempban [@Mention / UserID] [Time(s:秒 / m:分 / h:時間 / w:週間)] [Reason]", value="x | 一時的なBanを行います。", inline=False)
 			await help.send(embed=HelpPage2)
 		elif page == "3":
-			HelpPage3 = nextcord.Embed(title="コマンド一覧 - 3")
-			HelpPage3.add_field(name="ban [@Mention / UserID*] [Reason]", value="プレイヤーをBanします", inline=False)
-			HelpPage3.add_field(name="unban [UserID*]", value="指定のユーザーをUnBanします。", inline=False)
-			HelpPage3.add_field(name="report [Content*]", value="不具合等の報告ができます。")
-			HelpPage3.add_field(name="ping [type(normal / float)]", value="Botのpingを測定します。", inline=False)
-			HelpPage3.add_field(name="slowmode [delay(seconds / max: 6hours)*]", value="簡単にそのチャンネルの低速モードを設定できます。", inline=False)
+			HelpPage3 = nextcord.Embed(title="コマンド一覧 - 3", description="説明の最初に「x」がついている場合は、特定の権限が必要です。")
+			HelpPage3.add_field(name="ban [@Mention / UserID] [Reason]", value="x | プレイヤーをBanします", inline=False)
+			HelpPage3.add_field(name="unban [UserID]", value="x | 指定のユーザーをUnBanします。", inline=False)
+			HelpPage3.add_field(name="report [Content]", value="o | 不具合等の報告ができます。")
+			HelpPage3.add_field(name="ping", value="o | Botのpingを測定します。", inline=False)
+			HelpPage3.add_field(name="slowmode [delay(seconds / max: 6h)]", value="x | 簡単にそのチャンネルの低速モードを設定できます。", inline=False)
 			await help.send(embed=HelpPage3)
 		elif page == "4":
-			HelpPage4 = nextcord.Embed(title="コマンド一覧 - 4")
-			HelpPage4.add_field(name="lookup [IP*]", value="IPの情報をAPIで検索します。", inline=False)
-			HelpPage4.add_field(name="mute [type(set / mute)*] [id(user / role)*]", value="ユーザーのミュートとアンミュートを行います", inline=False)
-			HelpPage4.add_field(name="qi [@Mention*]", value="特定のBotの招待リンクを発行します。", inline=False)
-			HelpPage4.add_field(name="nitroc [nitro-code*]", value="Nitroのリンクが有効か確認します。", inline=False)
-			HelpPage4.add_field(name="invitec [invite-link-code*]", value="招待リンクが機能しているか確認します。", inline=False)
+			HelpPage4 = nextcord.Embed(title="コマンド一覧 - 4", description="説明の最初に「x」がついている場合は、特定の権限が必要です。")
+			HelpPage4.add_field(name="lookup [IP]", value="o | IPの情報をAPIで検索します。", inline=False)
+			HelpPage4.add_field(name="mute [type(set / mute)] [id(user / role)]", value="x | ユーザーのミュートとアンミュートを行います", inline=False)
+			HelpPage4.add_field(name="qi [@Mention]", value="o | 特定のBotの招待リンクを発行します。", inline=False)
+			HelpPage4.add_field(name="amm [type(user / role / toggle / mute)] [settings]", value="x | AntiMassMentionsの設定を行います。", inline=False)
+			HelpPage4.add_field(name="dupe [type(role / category)] [既存のCategory ID(or Role ID)] [New Category Name(or Role Name)]", value="x | カテゴリまたはロールを複製します。", inline=False)
 			await help.send(embed=HelpPage4)
-		elif page == "5":
-			HelpPage5 = nextcord.Embed(title="コマンド一覧 - 5")
-			HelpPage5.add_field(name="dupe [Dupe Type*] [既存のCategory ID(or Role ID)*] [New Category Name(or Role Name)*]", value="カテゴリまたはロールを複製します。")
-			await help.send(embed=HelpPage5)
 		else:
 			await help.send("無効な引数です。")
 	elif t == "features":
@@ -416,14 +347,16 @@ async def help(help, t=None, page=None):
 @bot.command()
 async def ping(ping):
 	print("[Run]コマンド「ping」が実行されました")
-	ping_check = nextcord.Embed(title="Ping測定", description="Ping値: 測定中", color=0x7cfc00)
-	ping_message = await ping.send(embed=ping_check)
 	ping_value = round(bot.latency, 1)
 	ping_result = nextcord.Embed(title="Ping測定", description=f"Ping値: {ping_value}ms", color=0x7cfc00)
 	await ping_message.edit(embed=ping_result)
 	
 @bot.command()
 async def warn(warn, set_content=None, member: nextcord.Member=None):
+	print("[Run]コマンド「warn」が実行されました")
+	if warn.author.guild_permissions.administrator:
+		await warn.send("管理者権限が必要です。")
+		return
 	if set_content == "warn":
 		with open("warn.json", "r") as file:
 			warn_data = json.load(file)
@@ -512,6 +445,7 @@ async def warn(warn, set_content=None, member: nextcord.Member=None):
 
 @bot.command()
 async def amm(amm, settings_type=None, set_content=None):
+	print("[Run]コマンド「amm」が実行されました")
 	if not amm.author.guild_permissions.administrator:
 		await amm.send("貴方はこのコマンドを使用する権限がありません")
 		return
@@ -697,20 +631,6 @@ async def server(server):
 		return
 
 @bot.command()
-async def tokenec(tokenec, t=None):
-	print("[Run]コマンド「tokenec」が実行されました")
-	if t == None:
-		token_none = nextcord.Embed(title="Tokenが不明です", description="Tokenが入力されていません。\n無効なTokenです。")
-		await tokenec.send(token_none)
-	response = token_check(t)
-	if response == True:
-		token_valid = nextcord.Embed(title="VALID", description="Tokenの有効性が確認されました。\n(Tokenは有効でした。)")
-		await tokenec.send(embed=token_valid)
-	else:
-		token_invalid = nextcord.Embed(title="INVALID", description="Tokenの有効性は確認されませんでした。\n(Tokenは無効でした。)")
-		await tokenec.send(embed=token_invalid)
-
-@bot.command()
 async def qi(qi, b=None, permscode="8"):
 	print("[Run]コマンド「qi」が実行されました")
 	if b == None:
@@ -740,19 +660,6 @@ async def tokenc(tokenc, t=None):
 		return
 	response = token_info(t)
 	await tokenc.send(response)
-
-@bot.command()
-@commands.cooldown(1, 120, commands.BucketType.guild)
-async def nitroc(nitroc, nitro=None):
-	print("[Run]コマンド「nitroc」が実行されました")
-	if nitro == None:
-		await nitroc.send("Nitroのコードを入力してください。")
-		return
-	response = nitro_check(code=nitro)
-	if response == True:
-		await nitroc.send("Nitroは有効です。")
-	else:
-		await nitroc.send("Nitroは無効です。")
 
 @bot.command()
 async def lookup(lookup, ip=None):
@@ -797,6 +704,9 @@ async def lookup(lookup, ip=None):
 @bot.command()
 async def say(say, type="msg", *, content):
 	print("[Run]コマンド「say」が実行されました")
+	if say.author.guild_permissions.administrator:
+		await say.send("管理者権限が必要です。")
+		return
 	try:
 		ch = await bot.fetch_channel(say.channel.id)
 		msg = await ch.fetch_message(say.id)
@@ -1568,7 +1478,7 @@ async def slowmode(slowmode, delay):
 async def report(report, *, content):
 	print("[Run]コマンド「report」が実行されました")
 	await report.send("レポートを送信します。")
-	get_user = await bot.fetch_user()
+	get_user = await bot.fetch_user(910588052102086728)
 	await get_user.send(f"レポートが届きました。\n送信元: {report.author}\n内容: {content}")
 	await report.send("レポートが送信されました。")
 
