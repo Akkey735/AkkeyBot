@@ -42,8 +42,12 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-	with open("amm.json", "r") as file:
+	file = open("amm.json", "r")
+	try:
 		amm_guild_data = json.load(file)[str(message.guild.id)]
+	except KeyError:
+		return
+	file.close()
 	try:
 		amm_guild_data["amm"]
 		amm_guild_data["maxrole"]

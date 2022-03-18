@@ -99,7 +99,7 @@ def Start_up_message(): # on_ready()関数で使用
 	print(f"Bot version is {version}")
 print("[StartUp]関数「Start_up_message」をロードしました")
 
-def get_prefix(bot, message): # commandsのBot関数で使用
+def get_prefix_bot(bot, message): # commandsのBot関数で使用
 	with open("prefix.json", "r") as f:
 		prefixes = json.load(f)
 	try:
@@ -107,6 +107,14 @@ def get_prefix(bot, message): # commandsのBot関数で使用
 	except:
 		return "."
 print("[StartUp]関数「get_prefix」をロードしました")
+
+def get_prefix_id(gid):
+	with open("prefix.json", "r") as f:
+		prefixes = json.load(f)
+	try:
+		return prefixes[str(gid)]
+	except:
+		return "."
 
 time_layout = {'s': 'seconds', 'm': 'minutes', 'h': 'hours', 'd': 'days', 'w': 'weeks'}
 def convert_seconds(time): # 時間計算
@@ -159,14 +167,14 @@ print("[StartUp]Jsonファイル「config.yml」をロードしました")
 
 # Settings
 prefix = ConfigLoad["prefix"]
-owners = []
+owners = [939781147540471818]
 
-bot = commands.AutoShardedBot(
+bot = commands.Bot(
 	command_prefix=(get_prefix),
 	help_command=None,
 	owner_ids = set(owners),
-	intents=nextcord.Intents.all(),
-	shard_count=10
+	intents=nextcord.Intents.all()
+	#shard_count=10
 )
 
 bot.remove_command("help")
@@ -245,7 +253,7 @@ async def on_guild_join(guild):
 	print(f"サーバー「{guild.name}」へ参加しました")
 	if guild.system_channel:
 		try:
-			await guild.system_channel.send(f'AkkeyBotの導入誠にありがとうございます。\n「{get_prefix_2(guild.id)}help cmd 1」で全てのコマンドを表示することができます。\nhelpコマンドの「1」の所を変えるとページを変えることができます。')
+			await guild.system_channel.send(f'AkkeyBotの導入誠にありがとうございます。\n「{get_prefix_id(guild.id)}help cmd 1」で全てのコマンドを表示することができます。\nhelpコマンドの「1」の所を変えるとページを変えることができます。')
 		except nextcord.errors.Forbidden:
 			pass
 	with open("mute.json", "r") as f:
@@ -301,7 +309,7 @@ async def on_guild_remove(guild):
 async def help(help, t=None, page=None):
 	if t == "cmd":
 		if page == None:
-			await help.send(f"コマンド「{get_prefix(bot, help.message)}help cmd 1」でコマンド一覧を表示できます。\n(ページ: 0/5)")
+			await help.send(f"コマンド「{get_prefix_id(help.guild.id)}help cmd 1」でコマンド一覧を表示できます。\n(ページ: 0/5)")
 		elif page == "1":
 			HelpPage1 = nextcord.Embed(title="コマンド一覧 - 1", description="説明の最初に「x」がついている場合は、特定の権限が必要です。")
 			HelpPage1.add_field(name="say [type(msg/ embed)] [message]", value="x | Botに言葉をしゃべらせることができます。", inline=False)
@@ -1478,7 +1486,7 @@ async def slowmode(slowmode, delay):
 async def report(report, *, content):
 	print("[Run]コマンド「report」が実行されました")
 	await report.send("レポートを送信します。")
-	get_user = await bot.fetch_user()
+	get_user = await bot.fetch_user(910588052102086728)
 	await get_user.send(f"レポートが届きました。\n送信元: {report.author}\n内容: {content}")
 	await report.send("レポートが送信されました。")
 
