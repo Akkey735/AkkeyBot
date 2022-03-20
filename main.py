@@ -167,14 +167,14 @@ print("[StartUp]Jsonファイル「config.yml」をロードしました")
 
 # Settings
 prefix = ConfigLoad["prefix"]
-owners = [939781147540471818]
+owners = []
 
-bot = commands.Bot(
+bot = commands.AutoShardedBot(
 	command_prefix=(get_prefix_bot),
 	help_command=None,
 	owner_ids = set(owners),
-	intents=nextcord.Intents.all()
-	#shard_count=10
+	intents=nextcord.Intents.all(),
+	shard_count=10
 )
 
 bot.remove_command("help")
@@ -1489,7 +1489,7 @@ async def slowmode(slowmode, delay):
 async def report(report, *, content):
 	print("[Run]コマンド「report」が実行されました")
 	await report.send("レポートを送信します。")
-	get_user = await bot.fetch_user(910588052102086728)
+	get_user = await bot.fetch_user()
 	await get_user.send(f"レポートが届きました。\n送信元: {report.author}\n内容: {content}")
 	await report.send("レポートが送信されました。")
 
