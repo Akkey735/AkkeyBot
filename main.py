@@ -167,14 +167,14 @@ print("[StartUp]Jsonファイル「config.yml」をロードしました")
 
 # Settings
 prefix = ConfigLoad["prefix"]
-owners = []
+owners = [939781147540471818]
 
-bot = commands.AutoShardedBot(
+bot = commands.Bot(
 	command_prefix=(get_prefix_bot),
 	help_command=None,
 	owner_ids = set(owners),
-	intents=nextcord.Intents.all(),
-	shard_count=10
+	intents=nextcord.Intents.all()
+	#shard_count=10
 )
 
 bot.remove_command("help")
@@ -186,7 +186,7 @@ print("[StartUp]設定をロードしました。")
 async def on_command_error(_error, error):
 	if isinstance(error, CommandNotFound):
 		print("[Defined error]想定済みのエラー(CommandNotFound)が発生しました。")
-		await _error.reply("そのコマンドは存在しません")
+		await _error.reply("そのコマンドは存在しません。")
 		return
 	elif isinstance(error, CommandOnCooldown):
 		print("[Defined error]想定済みのエラー(CommandOnCooldown)が発生しました。")
@@ -223,7 +223,12 @@ async def on_command_error(_error, error):
 	else:
 		main_python_error = getattr(error, "original", error)
 		error_message = "".join(traceback.TracebackException.from_exception(main_python_error).format())
-		await _error.send(f"**__想定外のエラー__**\nこれは想定外のエラーです。\n開発者に報告してください。\n\nエラー内容:\n```{error_message}```")
+		error_embed = nextcord.Embed(title="エラー", description="Botで予期せぬエラーが発生しました。")
+		error_embed.add_field(name="エラーが起きた原因", value="予期せぬエラーは、開発者が想定していないエラーです。\n基本的に開発者に報告することをお勧めします。\nただし、対処法が1つだけあるため、それだけ確認してから報告することを推奨します。", inline=False)
+		error_embed.add_field(name="解決法", value="**この方法で治る可能性は低いです**\nresetコマンドを実行して、リセットが完了するまで待ちます。\nリセットが完了したらエラーが解決しているか確かめてみてください。\nもし解決していなかったら報告する必要があります。", inline=False)
+		error_embed.add_field(name="エラー文", value=f"```powershell\n{error_message}\n```")
+		await _error.send(embed=error_embed)
+		print(f"[Undefined error]想定外のエラーが発生しました。\n=== エラー スタート ===\n{error_message}\n=== エラー終了 ===")
 		return
 
 	raise error
@@ -312,6 +317,7 @@ async def help(help, t=None, page=None):
 			await help.send(f"コマンド「{get_prefix_id(help.guild.id)}help cmd 1」でコマンド一覧を表示できます。\n(ページ: 0/5)")
 		elif page == "1":
 			HelpPage1 = nextcord.Embed(title="コマンド一覧 - 1", description="説明の最初に「x」がついている場合は、特定の権限が必要です。")
+			HelpPage1.add_field(name="reset", value="x | Botの設定をすべて再設定します。(初期化)", inline=False)
 			HelpPage1.add_field(name="say [type(msg/ embed)] [message]", value="x | Botに言葉をしゃべらせることができます。", inline=False)
 			HelpPage1.add_field(name="roleper [@MentionRole]", value="o | メンションしたロールの権限を見ることができます。", inline=False)
 			HelpPage1.add_field(name="memberper [@Mention]", value="o | メンションしたユーザーの権限を見ることができます。", inline=False)
@@ -353,13 +359,44 @@ async def help(help, t=None, page=None):
 		await help.send("無効な引数です。")
 
 @bot.command()
+@commands.cooldown(1, 60, commands.BucketType.guild)
 async def ping(ping):
 	print("[Run]コマンド「ping」が実行されました")
 	ping_value = round(bot.latency, 1)
 	ping_result = nextcord.Embed(title="Ping測定", description=f"Ping値: {ping_value}ms", color=0x7cfc00)
-	await ping_message.edit(embed=ping_result)
+	await ping.edit(embed=ping_result)
+
+@bot.command()
+@commands.cooldown(1, 900, commands.BucketType.guild)
+async def reset(reset):
+	if not reset.author.guild_permissions.administrator:
+		await reset.send("サーバーの管理者権限が必要です。")
+		return
+	guild = reset.guild
+	wait_request_message = await reset.send("リセット中です...")
+	with open("mute.json", "r") as f:
+		mute_role_ids = json.load(f)
+	mute_role_ids[str(guild.id)] = "0"
+	with open("mute.json", "w") as f:
+		json.dump(mute_role_ids, f, indent=4)
+	with open("prefix.json", "r") as f:
+		guilds_prefix = json.load(f)
+	guilds_prefix[str(guild.id)] = "."
+	with open("prefix.json", "w") as f:
+		json.dump(guilds_prefix, f, indent=4)
+	with open("amm.json", "r") as f:
+		amm_data = json.load(f)
+	amm_data[str(guild.id)] = {}
+	amm_data[str(guild.id)]["amm"] = "0"
+	amm_data[str(guild.id)]["maxuser"] = "3"
+	amm_data[str(guild.id)]["maxrole"] = "5"
+	amm_data[str(guild.id)]["mute"] = "0"
+	with open("amm.json", "w") as f:
+		json.dump(amm_data, f, indent=4)
+	await wait_request_message.edit("リセットが完了しました。")
 	
 @bot.command()
+@commands.cooldown(1, 30, commands.BucketType.user)
 async def warn(warn, set_content=None, member: nextcord.Member=None):
 	print("[Run]コマンド「warn」が実行されました")
 	if warn.author.guild_permissions.administrator:
@@ -452,6 +489,7 @@ async def warn(warn, set_content=None, member: nextcord.Member=None):
 			json.dump(warn_data, file, indent=4)
 
 @bot.command()
+@commands.cooldown(1, 60, commands.BucketType.user)
 async def amm(amm, settings_type=None, set_content=None):
 	print("[Run]コマンド「amm」が実行されました")
 	if not amm.author.guild_permissions.administrator:
@@ -552,6 +590,7 @@ async def amm(amm, settings_type=None, set_content=None):
 		json.dump(amm_data, file, indent=4)
 
 @bot.command()
+@commands.cooldown(1, 10, commands.BucketType.user)
 async def dupe(dupe, t, id, name):
 	print("[Run]コマンド「dupe」が実行されました")
 	if not dupe.author.guild_permissions.administrator:
@@ -594,6 +633,7 @@ async def dupe(dupe, t, id, name):
 		await dupe.send(embed=dupe_type_invalid)
 
 @bot.command()
+@commands.cooldown(1, 60, commands.BucketType.user)
 async def server(server):
 	print("[Run]コマンド「server」が実行されました")
 	guild = bot.get_guild(server.guild.id)
@@ -661,15 +701,7 @@ async def qi(qi, b=None, permscode="8"):
 	await qi.send(embed=bot_invite_created)
 
 @bot.command()
-async def tokenc(tokenc, t=None):
-	if t == None:
-		no_token = nextcord.Embed(title="Tokenを入力してください", description="Tokenが入力されませんでした。\n有効なTokenを入力して再度お試しください。")
-		await tokenc.send(embed=no_token)
-		return
-	response = token_info(t)
-	await tokenc.send(response)
-
-@bot.command()
+@commands.cooldown(1, 3, commands.BucketType.user)
 async def lookup(lookup, ip=None):
 	print("[Run]コマンド「lookup」が実行されました")
 	if ip == None:
@@ -710,6 +742,7 @@ async def lookup(lookup, ip=None):
 	await lookup.send(f"IPアドレスの情報\nIP: {IPAddress}\nエリア: {Continent}\n国: {Country}\n都道府県: {Region}\n市 / 区: {City}\n緯度: {Lat}\n経度: {Lon}\nタイムゾーン: {Timezone}\nISP: {ISP}\nORG: {ORG}\n逆引き: {Reverse}\nモバイル回線: {UsingMobile}\nProxy使用: {UsingProxy}\n回線タイプ: {Special}")
 
 @bot.command()
+@commands.cooldown(1, 120, commands.BucketType.user)
 async def say(say, type="msg", *, content):
 	print("[Run]コマンド「say」が実行されました")
 	if say.author.guild_permissions.administrator:
@@ -733,48 +766,7 @@ async def say(say, type="msg", *, content):
 		await say.send("管理者以外は実行することができません。")
 
 @bot.command()
-async def invitec(invitec, icode):
-	print("[Run]コマンド「invitec」が実行されました")
-	response = invite_check(code=icode)
-	try:
-		message = response["message"]
-		if message == "Unknown Invite":
-			await invitec.send("招待リンクのコードが無効です。")
-			return
-	except KeyError:
-		pass
-	try:
-		ginfo = response["guild"]
-	except KeyError:
-		await invitec.send("招待リンクのコードが無効です。")
-		return
-	cinfo = response["channel"]
-	uinfo = response["inviter"]
-	guild_name = ginfo["name"]
-	guild_id = ginfo["id"]
-	guild_icon_id = ginfo["icon"]
-	guild_icon_url = f"https://cdn.discordapp.com/icons/{guild_id}/{guild_icon_id}"
-	guild_verification = ginfo["verification_level"]
-	channel_name = cinfo["name"]
-	channel_id = cinfo["id"]
-	inviter_name = uinfo["username"]
-	inviter_tag = uinfo["discriminator"]
-	inviter_username = f"{inviter_name}#{inviter_tag}"
-	inviter_id = uinfo["id"]
-	if guild_verification == 0:
-		verify_level = "設定なし"
-	elif guild_verification == 1:
-		verify_level = "メール認証必須"
-	elif guild_verification == 2:
-		verify_level = "Discord登録から5分以上経過した場合のみ"
-	elif guild_verification == 3:
-		verify_level = "サーバーに参加してから10分以上経過した場合のみ"
-	elif guild_verification == 4:
-		verify_level = "電話認証必須"
-	await invitec.send(f"サーバー名: {guild_name}\nサーバーID: {guild_id}\nサーバーアイコンURL: {guild_icon_url}\nサーバー認証レベル: {verify_level}\nチャンネル名: {channel_name}\nチャンネルID: {channel_id}\nユーザー名: {inviter_username}\nユーザーID: {inviter_id}\n")
-
-
-@bot.command()
+@commands.cooldown(1, 120, commands.BucketType.user)
 async def mute(mute, settype, id, reason=None):
 	print("[Run]コマンド「mute」が実行されました")
 	if mute.author.guild_permissions.administrator:
@@ -847,6 +839,7 @@ async def mute(mute, settype, id, reason=None):
 		await mute.send("権限が足りません。\nミュートを実行するには管理者権限保有者でなければ行けません。")
 
 @bot.command()
+@commands.cooldown(1, 15, commands.BucketType.user)
 async def roleper(roleper, role: nextcord.Role):
 	if role.permissions.administrator:
 		administrator=':green_circle:'
@@ -978,6 +971,7 @@ async def roleper(roleper, role: nextcord.Role):
 	await roleper.send(embed=RolePermsResult)
 
 @bot.command()
+@commands.cooldown(1, 15, commands.BucketType.user)
 async def memberper(memberper, member: nextcord.Member):
 	if member.guild_permissions.administrator:
 		administrator=':green_circle:'
@@ -1109,6 +1103,7 @@ async def memberper(memberper, member: nextcord.Member):
 	await memberper.send(embed=MemberPermsResult)
 
 @bot.command()
+@commands.cooldown(1, 10, commands.BucketType.user)
 async def getmcsv(getmcsv, t="normal", address=None, port="25565"):
 	print("[Run]コマンド「getmcsv」が実行されました")
 	if address == None:
@@ -1143,7 +1138,7 @@ async def getmcsv(getmcsv, t="normal", address=None, port="25565"):
 			return
 
 @bot.command()
-@commands.cooldown(1, 30, commands.BucketType.user)
+@commands.cooldown(1, 120, commands.BucketType.user)
 async def clear(clear, amout="10"):
 	print("[Run]コマンド「clear」が実行されました")
 	if clear.author.guild_permissions.administrator:
@@ -1155,6 +1150,7 @@ async def clear(clear, amout="10"):
 		await clear.send("権限がたりません。管理者である必要があります。")
 	
 @bot.command()
+@commands.cooldown(1, 180, commands.BucketType.user)
 async def user(serach, u=None):
 	print("[Run]コマンド「serach」が実行されました")
 	if u == None:
@@ -1355,6 +1351,7 @@ async def user(serach, u=None):
 	await serach.send(embed=uroles)
 
 @bot.command()
+@commands.cooldown(1, 5, commands.BucketType.user)
 async def kick(kick, member: nextcord.member, reason=None):
 	print("[Run]コマンド「kick」が実行されました")
 	if kick.author.guild_permissions.kick_members:
@@ -1368,6 +1365,7 @@ async def kick(kick, member: nextcord.member, reason=None):
 		await kick.send(embed=PermissionError)
 	
 @bot.command()
+@commands.cooldown(1, 180, commands.BucketType.user)
 async def tempban(tempban, request_ban_user, time, reason=None):
 	print("[Run]コマンド「tempban」が実行されました")
 	if tempban.author.guild_permissions.ban_members:
@@ -1409,6 +1407,7 @@ async def tempban(tempban, request_ban_user, time, reason=None):
 		await tempban.send(embed=PermissionError)
 
 @bot.command()
+@commands.cooldown(1, 5, commands.BucketType.user)
 async def ban(ban, request_ban_user, reason=None):
 	print("[Run]コマンド「ban」が実行されました")
 	if ban.author.guild_permissions.ban_members:
@@ -1447,6 +1446,7 @@ async def ban(ban, request_ban_user, reason=None):
 		await ban.send(embed=PermissionError)
 
 @bot.command()
+@commands.cooldown(1, 5, commands.BucketType.user)
 async def unban(unban, id:int):
 	print("[Run]コマンド「unban」が実行されました")
 	if unban.author.guild_permissions.administrator:
@@ -1465,6 +1465,7 @@ async def unban(unban, id:int):
 		await unban.send(embed=PError)
 
 @bot.command()
+@commands.cooldown(1, 180, commands.BucketType.user)
 async def banlist(banlist):
 	print("[Run]コマンド「banlist」が実行されました")
 	bans = await banlist.guild.bans()
@@ -1473,6 +1474,7 @@ async def banlist(banlist):
 	await banlist.send(embed=bl)
 
 @bot.command()
+@commands.cooldown(1, 120, commands.BucketType.user)
 async def slowmode(slowmode, delay):
 	print("[Run]コマンド「slowmode」が実行されました")
 	if slowmode.author.guild_permissions.manage_channels:
@@ -1483,14 +1485,16 @@ async def slowmode(slowmode, delay):
 		await slowmode.send("権限が足りません。\n少なくともチャンネルの編集権限を持っている必要があります。")
 
 @bot.command()
+@commands.cooldown(1, 90, commands.BucketType.guild)
 async def report(report, *, content):
 	print("[Run]コマンド「report」が実行されました")
 	await report.send("レポートを送信します。")
-	get_user = await bot.fetch_user()
+	get_user = await bot.fetch_user(910588052102086728)
 	await get_user.send(f"レポートが届きました。\n送信元: {report.author}\n内容: {content}")
 	await report.send("レポートが送信されました。")
 
 @bot.command()
+@commands.cooldown(1, 300, commands.BucketType.user)
 async def setpre(setpre, prefix="."):
 	print("[Run]コマンド「setpre」が実行されました")
 	if setpre.author.guild_permissions.administrator:
