@@ -1,5 +1,5 @@
-# AkkeyBot
-Akkey57492が開発するBot
+# AkkeyBot Rewrite
+Akkey57492が開発するBot...**のJavaScript書き直し版**
 
 # LISENCE
 ```
